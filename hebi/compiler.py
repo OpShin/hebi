@@ -145,12 +145,13 @@ class UPLCCompiler(CompilingNodeTransformer):
     def __init__(self, force_three_params=False):
         self.force_three_params = force_three_params
 
-    def visit_sequence(self, node_seq: typing.List[typedstmt]) -> plt.AST:
-        s = plt.Var(STATEMONAD)
-        for n in node_seq:
-            compiled_stmt = self.visit(n)
-            s = plt.Apply(compiled_stmt, s)
-        return plt.Lambda([STATEMONAD], s)
+    def visit_sequence(self, node_seq: typing.List[typedstmt]) -> typing.Callable[[plt.AST], plt.AST]:
+        def g(s: plt.AST):
+            for n in reversed(node_seq):
+                compiled_stmt = self.visit(n)
+                s = compiled_stmt(s)
+            return s
+        return g
 
     def visit_BinOp(self, node: TypedBinOp) -> plt.AST:
         opmap = BinOpMap.get(type(node.op))
@@ -166,27 +167,18 @@ class UPLCCompiler(CompilingNodeTransformer):
             raise NotImplementedError(
                 f"Operation {node.op} is not implemented for left type {node.left.typ} and right type {node.right.typ}"
             )
-        return plt.Lambda(
-            [STATEMONAD],
-            op(
-                plt.Apply(self.visit(node.left), plt.Var(STATEMONAD)),
-                plt.Apply(self.visit(node.right), plt.Var(STATEMONAD)),
-            ),
-        )
+        return op(self.visit(node.left), self.visit(node.right))
 
     def visit_BoolOp(self, node: TypedBoolOp) -> plt.AST:
         op = BoolOpMap.get(type(node.op))
         assert len(node.values) >= 2, "Need to compare at least to values"
         ops = op(
-            plt.Apply(self.visit(node.values[0]), plt.Var(STATEMONAD)),
-            plt.Apply(self.visit(node.values[1]), plt.Var(STATEMONAD)),
+            self.visit(node.values[0]),
+            self.visit(node.values[1]),
         )
         for v in node.values[2:]:
-            ops = op(ops, plt.Apply(self.visit(v), plt.Var(STATEMONAD)))
-        return plt.Lambda(
-            [STATEMONAD],
-            ops,
-        )
+            ops = op(ops, self.visit(v))
+        return ops
 
     def visit_UnaryOp(self, node: TypedUnaryOp) -> plt.AST:
         opmap = UnaryOpMap.get(type(node.op))
@@ -195,10 +187,7 @@ class UPLCCompiler(CompilingNodeTransformer):
         assert (
             op is not None
         ), f"Operator {type(node.op)} is not supported for type {node.operand.typ}"
-        return plt.Lambda(
-            [STATEMONAD],
-            op(plt.Apply(self.visit(node.operand), plt.Var(STATEMONAD))),
-        )
+        return op(self.visit(node.operand))
 
     def visit_Compare(self, node: TypedCompare) -> plt.AST:
         assert len(node.ops) == 1, "Only single comparisons are supported"
@@ -206,13 +195,10 @@ class UPLCCompiler(CompilingNodeTransformer):
         cmpop = node.ops[0]
         comparator = node.comparators[0].typ
         op = node.left.typ.cmp(cmpop, comparator)
-        return plt.Lambda(
-            [STATEMONAD],
-            plt.Apply(
-                op,
-                plt.Apply(self.visit(node.left), plt.Var(STATEMONAD)),
-                plt.Apply(self.visit(node.comparators[0]), plt.Var(STATEMONAD)),
-            ),
+        return plt.Apply(
+            op,
+            self.visit(node.left),
+            self.visit(node.comparators[0]),
         )
 
     def visit_Module(self, node: TypedModule) -> plt.AST:
@@ -254,31 +240,24 @@ class UPLCCompiler(CompilingNodeTransformer):
                     "The second argument to the validator function potentially has constructor id 0. The validator will not be able to double function as minting script and spending script."
                 )
 
+        body = node.body + [TypedReturn(value=Name(id="validator", typ=main_fun_typ), typ=main_fun_typ.rettyp)]
+
         validator = plt.Lambda(
             [f"p{i}" for i, _ in enumerate(main_fun_typ.argtyps)],
             transform_output_map(main_fun_typ.rettyp)(
                 plt.Let(
                     [
                         (
-                            "s",
-                            plt.Apply(self.visit_sequence(node.body), INITIAL_STATE),
-                        ),
-                        (
-                            "g",
-                            plt.FunctionalMapAccess(
-                                plt.Var("s"),
-                                plt.ByteString(main_fun.name),
-                                plt.TraceError("NameError: validator"),
-                            ),
+                            "val",
+                            self.visit_sequence(body)(plt.Error()),
                         ),
                     ],
                     plt.Apply(
-                        plt.Var("g"),
+                        plt.Var("val"),
                         *[
                             transform_ext_params_map(a)(plt.Var(f"p{i}"))
                             for i, a in enumerate(main_fun_typ.argtyps)
                         ],
-                        plt.Var("s"),
                     ),
                 ),
             ),
@@ -301,12 +280,12 @@ class UPLCCompiler(CompilingNodeTransformer):
             raise NotImplementedError(
                 f"Constants of type {type(node.value)} are not supported"
             )
-        return plt.Lambda([STATEMONAD], plt_type(node.value))
+        return plt_type(node.value)
 
     def visit_NoneType(self, _: typing.Optional[typing.Any]) -> plt.AST:
-        return plt.Lambda([STATEMONAD], plt.Unit())
+        return plt.Unit()
 
-    def visit_Assign(self, node: TypedAssign) -> plt.AST:
+    def visit_Assign(self, node: TypedAssign) -> typing.Callable[[plt.AST], plt.AST]:
         assert (
             len(node.targets) == 1
         ), "Assignments to more than one variable not supported yet"
@@ -314,18 +293,10 @@ class UPLCCompiler(CompilingNodeTransformer):
             node.targets[0], Name
         ), "Assignments to other things then names are not supported"
         compiled_e = self.visit(node.value)
-        # (\{STATEMONAD} -> (\x -> if (x ==b {self.visit(node.targets[0])}) then ({compiled_e} {STATEMONAD}) else ({STATEMONAD} x)))
         varname = node.targets[0].id
-        return plt.Lambda(
-            [STATEMONAD],
-            extend_statemonad(
-                [varname],
-                [plt.Apply(compiled_e, plt.Var(STATEMONAD))],
-                plt.Var(STATEMONAD),
-            ),
-        )
+        return lambda x: plt.Let([varname, compiled_e], x)
 
-    def visit_AnnAssign(self, node: AnnAssign) -> plt.AST:
+    def visit_AnnAssign(self, node: AnnAssign) -> typing.Callable[[plt.AST], plt.AST]:
         assert isinstance(
             node.target, Name
         ), "Assignments to other things then names are not supported"
@@ -335,18 +306,7 @@ class UPLCCompiler(CompilingNodeTransformer):
         compiled_e = self.visit(node.value)
         # we need to map this as it will originate from PlutusData
         # (\{STATEMONAD} -> (\x -> if (x ==b {self.visit(node.targets[0])}) then ({compiled_e} {STATEMONAD}) else ({STATEMONAD} x)))
-        return plt.Lambda(
-            [STATEMONAD],
-            extend_statemonad(
-                [node.target.id],
-                [
-                    transform_ext_params_map(node.target.typ)(
-                        plt.Apply(compiled_e, plt.Var(STATEMONAD))
-                    )
-                ],
-                plt.Var(STATEMONAD),
-            ),
-        )
+        return lambda x: plt.Let([node.target.id, transform_ext_params_map(node.target.typ)(compiled_e)], x)
 
     def visit_Name(self, node: TypedName) -> plt.AST:
         # depending on load or store context, return the value of the variable or its name
@@ -354,30 +314,15 @@ class UPLCCompiler(CompilingNodeTransformer):
             raise NotImplementedError(f"Context {node.ctx} not supported")
         if isinstance(node.typ, ClassType):
             # if this is not an instance but a class, call the constructor
-            return plt.Lambda(
-                [STATEMONAD],
-                node.typ.constr(),
-            )
-        return plt.Lambda(
-            [STATEMONAD],
-            plt.FunctionalMapAccess(
-                plt.Var(STATEMONAD),
-                plt.ByteString(node.id),
-                plt.TraceError(f"NameError: {node.orig_id}"),
-            ),
-        )
+            return node.typ.constr()
+        return plt.Var(node.id)
 
-    def visit_Expr(self, node: TypedExpr) -> plt.AST:
+    def visit_Expr(self, node: TypedExpr) -> typing.Callable[[plt.AST], plt.AST]:
         # we exploit UPLCs eager evaluation here
         # the expression is computed even though its value is eventually discarded
         # Note this really only makes sense for Trace
-        return plt.Lambda(
-            [STATEMONAD],
-            plt.Apply(
-                plt.Lambda(["_"], plt.Var(STATEMONAD)),
-                plt.Apply(self.visit(node.value), plt.Var(STATEMONAD)),
-            ),
-        )
+        # we use an invalid name here to avoid conflicts
+        return lambda x: plt.Apply(plt.Lambda(["0"], x), self.visit(node.value))
 
     def visit_Call(self, node: TypedCall) -> plt.AST:
         # compiled_args = " ".join(f"({self.visit(a)} {STATEMONAD})" for a in node.args)
@@ -389,27 +334,22 @@ class UPLCCompiler(CompilingNodeTransformer):
                 node.func.typ.typ.argtyps
             )
         else:
-            func_plt = plt.Apply(self.visit(node.func), plt.Var(STATEMONAD))
+            func_plt = self.visit(node.func)
         args = []
         for a, t in zip(node.args, node.func.typ.typ.argtyps):
             assert isinstance(t, InstanceType)
             # pass in all arguments evaluated with the statemonad
-            a_int = plt.Apply(self.visit(a), plt.Var(STATEMONAD))
+            a_int = self.visit(a)
             if isinstance(t.typ, AnyType):
                 # if the function expects input of generic type data, wrap data before passing it inside
                 a_int = transform_output_map(a.typ)(a_int)
             args.append(a_int)
-        return plt.Lambda(
-            [STATEMONAD],
-            plt.Apply(
-                func_plt,
-                *args,
-                # eventually pass in the state monad as well
-                plt.Var(STATEMONAD),
-            ),
+        return plt.Apply(
+            func_plt,
+            *args,
         )
 
-    def visit_FunctionDef(self, node: TypedFunctionDef) -> plt.AST:
+    def visit_FunctionDef(self, node: TypedFunctionDef) -> typing.Callable[[plt.AST], plt.AST]:
         body = node.body.copy()
         if not isinstance(body[-1], Return):
             tr = Return(None)
@@ -418,120 +358,29 @@ class UPLCCompiler(CompilingNodeTransformer):
                 node.typ.typ.rettyp == NoneInstanceType
             ), "Function has no return statement but is supposed to return not-None value"
             body.append(tr)
-        compiled_body = self.visit_sequence(body[:-1])
-        compiled_return = self.visit(body[-1].value)
-        args_state = extend_statemonad(
-            # the function can see its argument under the argument names
+        compiled_body = self.visit_sequence(body)(plt.Error())
+        return lambda x: plt.Let([(node.name, plt.Lambda(
             [a.arg for a in node.args.args],
-            [plt.Var(f"p{i}") for i in range(len(node.args.args))],
-            plt.Var(STATEMONAD),
-        )
-        return plt.Lambda(
-            [STATEMONAD],
-            extend_statemonad(
-                [node.name],
-                [
-                    plt.Lambda(
-                        # expect the statemonad again -> this is the basis for internally available values
-                        [f"p{i}" for i in range(len(node.args.args))] + [STATEMONAD],
-                        plt.Apply(
-                            compiled_return,
-                            plt.Apply(
-                                compiled_body,
-                                args_state,
-                            ),
-                        ),
-                    )
-                ],
-                plt.Var(STATEMONAD),
-            ),
+            compiled_body,
+        ))], x)
+
+
+    def visit_If(self, node: TypedIf) -> typing.Callable[[plt.AST], plt.AST]:
+        return lambda x: plt.Ite(
+            self.visit(node.test),
+            self.visit_sequence(node.body)(x),
+            self.visit_sequence(node.orelse)(x),
         )
 
-    def visit_While(self, node: TypedWhile) -> plt.AST:
-        compiled_c = self.visit(node.test)
-        compiled_s = self.visit_sequence(node.body)
-        if node.orelse:
-            # If there is orelse, transform it to an appended sequence (TODO check if this is correct)
-            cn = copy(node)
-            cn.orelse = []
-            return self.visit_sequence([cn] + node.orelse)
-        # return rf"(\{STATEMONAD} -> let g = (\s f -> if ({compiled_c} s) then f ({compiled_s} s) f else s) in (g {STATEMONAD} g))"
-        return plt.Lambda(
-            [STATEMONAD],
-            plt.Let(
-                bindings=[
-                    (
-                        "g",
-                        plt.Lambda(
-                            ["s", "f"],
-                            plt.Ite(
-                                plt.Apply(compiled_c, plt.Var("s")),
-                                plt.Apply(
-                                    plt.Var("f"),
-                                    plt.Apply(compiled_s, plt.Var("s")),
-                                    plt.Var("f"),
-                                ),
-                                plt.Var("s"),
-                            ),
-                        ),
-                    ),
-                ],
-                term=plt.Apply(plt.Var("g"), plt.Var(STATEMONAD), plt.Var("g")),
-            ),
-        )
+    def visit_Return(self, node: TypedReturn) -> typing.Callable[[plt.AST], plt.AST]:
+        # Throw away the term we were passed, this is going to be the last!
+        return lambda x: self.visit(node)
 
-    def visit_For(self, node: TypedFor) -> plt.AST:
-        if node.orelse:
-            # If there is orelse, transform it to an appended sequence (TODO check if this is correct)
-            cn = copy(node)
-            cn.orelse = []
-            return self.visit_sequence([cn] + node.orelse)
-        assert isinstance(node.iter.typ, InstanceType)
-        if isinstance(node.iter.typ.typ, ListType):
-            assert isinstance(
-                node.target, Name
-            ), "Can only assign value to singleton element"
-            return plt.Lambda(
-                [STATEMONAD],
-                plt.FoldList(
-                    plt.Apply(self.visit(node.iter), plt.Var(STATEMONAD)),
-                    plt.Lambda(
-                        [STATEMONAD, "e"],
-                        plt.Apply(
-                            self.visit_sequence(node.body),
-                            extend_statemonad(
-                                [node.target.id],
-                                [plt.Var("e")],
-                                plt.Var(STATEMONAD),
-                            ),
-                        ),
-                    ),
-                    plt.Var(STATEMONAD),
-                ),
-            )
-        raise NotImplementedError(
-            "Compilation of for statements for anything but lists not implemented yet"
-        )
-
-    def visit_If(self, node: TypedIf) -> plt.AST:
-        return plt.Lambda(
-            [STATEMONAD],
-            plt.Ite(
-                plt.Apply(self.visit(node.test), plt.Var(STATEMONAD)),
-                plt.Apply(self.visit_sequence(node.body), plt.Var(STATEMONAD)),
-                plt.Apply(self.visit_sequence(node.orelse), plt.Var(STATEMONAD)),
-            ),
-        )
-
-    def visit_Return(self, node: TypedReturn) -> plt.AST:
-        raise NotImplementedError(
-            "Compilation of return statements except for last statement in function is not supported."
-        )
-
-    def visit_Pass(self, node: TypedPass) -> plt.AST:
-        return self.visit_sequence([])
+    def visit_Pass(self, node: TypedPass) -> typing.Callable[[plt.AST], plt.AST]:
+        return lambda x: x
 
     def visit_Subscript(self, node: TypedSubscript) -> plt.AST:
+        # TODO adjust
         assert isinstance(
             node.value.typ, InstanceType
         ), "Can only access elements of instances, not classes"
@@ -698,24 +547,17 @@ class UPLCCompiler(CompilingNodeTransformer):
         raise NotImplementedError(f"Could not implement subscript of {node}")
 
     def visit_Tuple(self, node: TypedTuple) -> plt.AST:
-        return plt.Lambda(
-            [STATEMONAD],
-            plt.FunctionalTuple(
-                *(plt.Apply(self.visit(e), plt.Var(STATEMONAD)) for e in node.elts)
-            ),
+        return plt.FunctionalTuple(
+            *(self.visit(e) for e in node.elts)
         )
 
-    def visit_ClassDef(self, node: TypedClassDef) -> plt.AST:
-        return plt.Lambda(
-            [STATEMONAD],
-            extend_statemonad(
-                [node.name],
-                [node.class_typ.constr()],
-                plt.Var(STATEMONAD),
-            ),
+    def visit_ClassDef(self, node: TypedClassDef) -> typing.Callable[[plt.AST], plt.AST]:
+        return lambda x: plt.Let([(node.name, node.class_typ.constr())],
+            x
         )
 
     def visit_Attribute(self, node: TypedAttribute) -> plt.AST:
+        # TODO adjust
         assert isinstance(
             node.typ, InstanceType
         ), "Can only access attributes of instances"
@@ -725,12 +567,9 @@ class UPLCCompiler(CompilingNodeTransformer):
             [STATEMONAD], plt.Apply(attr, plt.Apply(obj, plt.Var(STATEMONAD)))
         )
 
-    def visit_Assert(self, node: TypedAssert) -> plt.AST:
-        return plt.Lambda(
-            [STATEMONAD],
-            plt.Ite(
-                plt.Apply(self.visit(node.test), plt.Var(STATEMONAD)),
-                plt.Var(STATEMONAD),
+    def visit_Assert(self, node: TypedAssert) -> typing.Callable[[plt.AST], plt.AST]:
+        return lambda x: plt.Ite(
+                self.visit(node.test),
                 plt.Apply(
                     plt.Error(),
                     plt.Trace(
@@ -739,7 +578,7 @@ class UPLCCompiler(CompilingNodeTransformer):
                     if node.msg is not None
                     else plt.Unit(),
                 ),
-            ),
+            x
         )
 
     def visit_RawPlutoExpr(self, node: RawPlutoExpr) -> plt.AST:
@@ -750,8 +589,8 @@ class UPLCCompiler(CompilingNodeTransformer):
         assert isinstance(node.typ.typ, ListType)
         l = empty_list(node.typ.typ.typ)
         for e in reversed(node.elts):
-            l = plt.MkCons(plt.Apply(self.visit(e), plt.Var(STATEMONAD)), l)
-        return plt.Lambda([STATEMONAD], l)
+            l = plt.MkCons(self.visit(e), l)
+        return l
 
     def visit_Dict(self, node: TypedDict) -> plt.AST:
         assert isinstance(node.typ, InstanceType)
@@ -763,24 +602,21 @@ class UPLCCompiler(CompilingNodeTransformer):
             l = plt.MkCons(
                 plt.MkPairData(
                     transform_output_map(key_type)(
-                        plt.Apply(self.visit(k), plt.Var(STATEMONAD))
+                        self.visit(k)
                     ),
                     transform_output_map(value_type)(
-                        plt.Apply(self.visit(v), plt.Var(STATEMONAD))
+                        self.visit(v)
                     ),
                 ),
                 l,
             )
-        return plt.Lambda([STATEMONAD], l)
+        return l
 
     def visit_IfExp(self, node: TypedIfExp) -> plt.AST:
-        return plt.Lambda(
-            [STATEMONAD],
-            plt.Ite(
-                plt.Apply(self.visit(node.test), plt.Var(STATEMONAD)),
-                plt.Apply(self.visit(node.body), plt.Var(STATEMONAD)),
-                plt.Apply(self.visit(node.orelse), plt.Var(STATEMONAD)),
-            ),
+        return plt.Ite(
+                self.visit(node.test),
+                self.visit(node.body),
+                self.visit(node.orelse),
         )
 
     def visit_ListComp(self, node: TypedListComp) -> plt.AST:
@@ -791,7 +627,7 @@ class UPLCCompiler(CompilingNodeTransformer):
         assert isinstance(
             gen.target, Name
         ), "Can only assign value to singleton element"
-        lst = plt.Apply(self.visit(gen.iter), plt.Var(STATEMONAD))
+        lst = self.visit(gen.iter)
         ifs = None
         for ifexpr in gen.ifs:
             if ifs is None:
@@ -799,40 +635,26 @@ class UPLCCompiler(CompilingNodeTransformer):
             else:
                 ifs = plt.And(ifs, self.visit(ifexpr))
         map_fun = plt.Lambda(
-            ["x"],
-            plt.Apply(
-                self.visit(node.elt),
-                extend_statemonad([gen.target.id], [plt.Var("x")], plt.Var(STATEMONAD)),
-            ),
+            [gen.target.id],
+            self.visit(node.elt),
         )
         empty_list_con = empty_list(node.elt.typ)
         if ifs is not None:
             filter_fun = plt.Lambda(
-                ["x"],
-                plt.Apply(
-                    ifs,
-                    extend_statemonad(
-                        [gen.target.id], [plt.Var("x")], plt.Var(STATEMONAD)
-                    ),
-                ),
+                [gen.target.id],
+                ifs,
             )
-            return plt.Lambda(
-                [STATEMONAD],
-                plt.MapFilterList(
-                    lst,
-                    filter_fun,
-                    map_fun,
-                    empty_list_con,
-                ),
+            return plt.MapFilterList(
+                lst,
+                filter_fun,
+                map_fun,
+                empty_list_con,
             )
         else:
-            return plt.Lambda(
-                [STATEMONAD],
-                plt.MapList(
-                    lst,
-                    map_fun,
-                    empty_list_con,
-                ),
+            return plt.MapList(
+                lst,
+                map_fun,
+                empty_list_con,
             )
 
     def generic_visit(self, node: AST) -> plt.AST:

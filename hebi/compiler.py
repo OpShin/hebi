@@ -145,12 +145,15 @@ class UPLCCompiler(CompilingNodeTransformer):
     def __init__(self, force_three_params=False):
         self.force_three_params = force_three_params
 
-    def visit_sequence(self, node_seq: typing.List[typedstmt]) -> typing.Callable[[plt.AST], plt.AST]:
+    def visit_sequence(
+        self, node_seq: typing.List[typedstmt]
+    ) -> typing.Callable[[plt.AST], plt.AST]:
         def g(s: plt.AST):
             for n in reversed(node_seq):
                 compiled_stmt = self.visit(n)
                 s = compiled_stmt(s)
             return s
+
         return g
 
     def visit_BinOp(self, node: TypedBinOp) -> plt.AST:
@@ -206,19 +209,20 @@ class UPLCCompiler(CompilingNodeTransformer):
         # TODO can use more sophisiticated procedure here i.e. functions marked by comment
         main_fun: typing.Optional[InstanceType] = None
         for s in node.body:
-            if isinstance(s, FunctionDef) and s.orig_name == "validator":
+            if isinstance(s, FunctionDef) and s.name == "validator":
                 main_fun = s
         assert main_fun is not None, "Could not find function named validator"
-        main_fun_typ: FunctionType = main_fun.typ.typ
+        main_fun_typ = main_fun.typ
+        main_fun_typ_typ: FunctionType = main_fun_typ.typ
         assert isinstance(
-            main_fun_typ, FunctionType
+            main_fun_typ_typ, FunctionType
         ), "Variable named validator is not of type function"
 
         # check if this is a contract written to double function
         enable_double_func_mint_spend = False
-        if len(main_fun_typ.argtyps) >= 3 and self.force_three_params:
+        if len(main_fun_typ_typ.argtyps) >= 3 and self.force_three_params:
             # check if is possible
-            second_last_arg = main_fun_typ.argtyps[-2]
+            second_last_arg = main_fun_typ_typ.argtyps[-2]
             assert isinstance(
                 second_last_arg, InstanceType
             ), "Can not pass Class into validator"
@@ -240,23 +244,28 @@ class UPLCCompiler(CompilingNodeTransformer):
                     "The second argument to the validator function potentially has constructor id 0. The validator will not be able to double function as minting script and spending script."
                 )
 
-        body = node.body + [TypedReturn(value=Name(id="validator", typ=main_fun_typ), typ=main_fun_typ.rettyp)]
+        body = node.body + [
+            TypedReturn(
+                value=Name(id="validator", typ=main_fun_typ, ctx=Load()),
+                typ=main_fun_typ_typ.rettyp,
+            )
+        ]
 
         validator = plt.Lambda(
-            [f"p{i}" for i, _ in enumerate(main_fun_typ.argtyps)],
-            transform_output_map(main_fun_typ.rettyp)(
+            [f"p{i}" for i, _ in enumerate(main_fun_typ_typ.argtyps)],
+            transform_output_map(main_fun_typ_typ.rettyp)(
                 plt.Let(
                     [
                         (
                             "val",
-                            self.visit_sequence(body)(plt.Error()),
+                            self.visit_sequence(body)(Constant(None)),
                         ),
                     ],
                     plt.Apply(
                         plt.Var("val"),
                         *[
                             transform_ext_params_map(a)(plt.Var(f"p{i}"))
-                            for i, a in enumerate(main_fun_typ.argtyps)
+                            for i, a in enumerate(main_fun_typ_typ.argtyps)
                         ],
                     ),
                 ),
@@ -264,7 +273,7 @@ class UPLCCompiler(CompilingNodeTransformer):
         )
         if enable_double_func_mint_spend:
             validator = wrap_validator_double_function(
-                validator, pass_through=len(main_fun_typ.argtyps) - 3
+                validator, pass_through=len(main_fun_typ_typ.argtyps) - 3
             )
         elif self.force_three_params:
             # Error if the double function is enforced but not possible
@@ -306,7 +315,9 @@ class UPLCCompiler(CompilingNodeTransformer):
         compiled_e = self.visit(node.value)
         # we need to map this as it will originate from PlutusData
         # (\{STATEMONAD} -> (\x -> if (x ==b {self.visit(node.targets[0])}) then ({compiled_e} {STATEMONAD}) else ({STATEMONAD} x)))
-        return lambda x: plt.Let([node.target.id, transform_ext_params_map(node.target.typ)(compiled_e)], x)
+        return lambda x: plt.Let(
+            [node.target.id, transform_ext_params_map(node.target.typ)(compiled_e)], x
+        )
 
     def visit_Name(self, node: TypedName) -> plt.AST:
         # depending on load or store context, return the value of the variable or its name
@@ -349,21 +360,24 @@ class UPLCCompiler(CompilingNodeTransformer):
             *args,
         )
 
-    def visit_FunctionDef(self, node: TypedFunctionDef) -> typing.Callable[[plt.AST], plt.AST]:
+    def visit_FunctionDef(
+        self, node: TypedFunctionDef
+    ) -> typing.Callable[[plt.AST], plt.AST]:
         body = node.body.copy()
-        if not isinstance(body[-1], Return):
-            tr = Return(None)
-            tr.typ = NoneInstanceType
-            assert (
-                node.typ.typ.rettyp == NoneInstanceType
-            ), "Function has no return statement but is supposed to return not-None value"
-            body.append(tr)
-        compiled_body = self.visit_sequence(body)(plt.Error())
-        return lambda x: plt.Let([(node.name, plt.Lambda(
-            [a.arg for a in node.args.args],
-            compiled_body,
-        ))], x)
-
+        # defaults to returning None if there is no return statement
+        compiled_body = self.visit_sequence(body)(Constant(None))
+        return lambda x: plt.Let(
+            [
+                (
+                    node.name,
+                    plt.Lambda(
+                        [a.arg for a in node.args.args],
+                        compiled_body,
+                    ),
+                )
+            ],
+            x,
+        )
 
     def visit_If(self, node: TypedIf) -> typing.Callable[[plt.AST], plt.AST]:
         return lambda x: plt.Ite(
@@ -374,7 +388,7 @@ class UPLCCompiler(CompilingNodeTransformer):
 
     def visit_Return(self, node: TypedReturn) -> typing.Callable[[plt.AST], plt.AST]:
         # Throw away the term we were passed, this is going to be the last!
-        return lambda x: self.visit(node)
+        return lambda x: self.visit(node.value)
 
     def visit_Pass(self, node: TypedPass) -> typing.Callable[[plt.AST], plt.AST]:
         return lambda x: x
@@ -547,14 +561,12 @@ class UPLCCompiler(CompilingNodeTransformer):
         raise NotImplementedError(f"Could not implement subscript of {node}")
 
     def visit_Tuple(self, node: TypedTuple) -> plt.AST:
-        return plt.FunctionalTuple(
-            *(self.visit(e) for e in node.elts)
-        )
+        return plt.FunctionalTuple(*(self.visit(e) for e in node.elts))
 
-    def visit_ClassDef(self, node: TypedClassDef) -> typing.Callable[[plt.AST], plt.AST]:
-        return lambda x: plt.Let([(node.name, node.class_typ.constr())],
-            x
-        )
+    def visit_ClassDef(
+        self, node: TypedClassDef
+    ) -> typing.Callable[[plt.AST], plt.AST]:
+        return lambda x: plt.Let([(node.name, node.class_typ.constr())], x)
 
     def visit_Attribute(self, node: TypedAttribute) -> plt.AST:
         # TODO adjust
@@ -569,16 +581,14 @@ class UPLCCompiler(CompilingNodeTransformer):
 
     def visit_Assert(self, node: TypedAssert) -> typing.Callable[[plt.AST], plt.AST]:
         return lambda x: plt.Ite(
-                self.visit(node.test),
-                plt.Apply(
-                    plt.Error(),
-                    plt.Trace(
-                        plt.Apply(self.visit(node.msg), plt.Var(STATEMONAD)), plt.Unit()
-                    )
-                    if node.msg is not None
-                    else plt.Unit(),
-                ),
-            x
+            self.visit(node.test),
+            plt.Apply(
+                plt.Error(),
+                plt.Trace(self.visit(node.msg), plt.Unit())
+                if node.msg is not None
+                else plt.Unit(),
+            ),
+            x,
         )
 
     def visit_RawPlutoExpr(self, node: RawPlutoExpr) -> plt.AST:
@@ -601,12 +611,8 @@ class UPLCCompiler(CompilingNodeTransformer):
         for k, v in zip(node.keys, node.values):
             l = plt.MkCons(
                 plt.MkPairData(
-                    transform_output_map(key_type)(
-                        self.visit(k)
-                    ),
-                    transform_output_map(value_type)(
-                        self.visit(v)
-                    ),
+                    transform_output_map(key_type)(self.visit(k)),
+                    transform_output_map(value_type)(self.visit(v)),
                 ),
                 l,
             )
@@ -614,9 +620,9 @@ class UPLCCompiler(CompilingNodeTransformer):
 
     def visit_IfExp(self, node: TypedIfExp) -> plt.AST:
         return plt.Ite(
-                self.visit(node.test),
-                self.visit(node.body),
-                self.visit(node.orelse),
+            self.visit(node.test),
+            self.visit(node.body),
+            self.visit(node.orelse),
         )
 
     def visit_ListComp(self, node: TypedListComp) -> plt.AST:
@@ -688,7 +694,7 @@ def compile(prog: AST, force_three_params=False):
     compile_pipeline = [
         # Apply optimizations
         OptimizeRemoveDeadvars(),
-        OptimizeVarlen(),
+        # OptimizeVarlen(),
         OptimizeRemovePass(),
         # the compiler runs last
         UPLCCompiler(force_three_params=force_three_params),

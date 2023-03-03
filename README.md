@@ -13,6 +13,9 @@
 
 </div>
 
+> DISCLAIMER: This is a rough first draft, based on [eopsin](https://github.com/ImperatorLang/eopsin).
+> If you are looking for a working product, first look there.
+
 This is an implementation of smart contracts for Cardano which are written in a very strict subset of valid Python.
 The general philosophy of this project is to write a compiler that 
 ensure the following:

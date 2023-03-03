@@ -6,6 +6,7 @@ Every evaluated part of the python expression tree results in a statemonad of lo
 The exception are functions:
 
 The ABI for functions is that they are a lambda function with `n + 1` arguments:
+ - the original function (for recursion)
  - the original `n` arguments of the function
 
 They should return only one value, their return value.

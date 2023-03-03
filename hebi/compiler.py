@@ -263,6 +263,7 @@ class UPLCCompiler(CompilingNodeTransformer):
                     ],
                     plt.Apply(
                         plt.Var("val"),
+                        plt.Var("val"),
                         *[
                             transform_ext_params_map(a)(plt.Var(f"p{i}"))
                             for i, a in enumerate(main_fun_typ_typ.argtyps)
@@ -356,7 +357,7 @@ class UPLCCompiler(CompilingNodeTransformer):
                 a_int = transform_output_map(a.typ)(a_int)
             args.append(a_int)
         return plt.Apply(
-            func_plt,
+            plt.RecFun(func_plt),
             *args,
         )
 
@@ -371,7 +372,7 @@ class UPLCCompiler(CompilingNodeTransformer):
                 (
                     node.name,
                     plt.Lambda(
-                        [a.arg for a in node.args.args],
+                        [node.name] + [a.arg for a in node.args.args],
                         compiled_body,
                     ),
                 )

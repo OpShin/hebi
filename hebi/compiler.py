@@ -258,7 +258,7 @@ class UPLCCompiler(CompilingNodeTransformer):
                     [
                         (
                             "val",
-                            self.visit_sequence(body)(Constant(None)),
+                            self.visit_sequence(body)(plt.Unit()),
                         ),
                     ],
                     plt.Apply(
@@ -366,7 +366,7 @@ class UPLCCompiler(CompilingNodeTransformer):
     ) -> typing.Callable[[plt.AST], plt.AST]:
         body = node.body.copy()
         # defaults to returning None if there is no return statement
-        compiled_body = self.visit_sequence(body)(Constant(None))
+        compiled_body = self.visit_sequence(body)(plt.Unit())
         return lambda x: plt.Let(
             [
                 (

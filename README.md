@@ -13,9 +13,6 @@
 
 </div>
 
-> DISCLAIMER: This is a rough first draft, based on [eopsin](https://github.com/ImperatorLang/eopsin).
-> If you are looking for a working product, first look there.
-
 This is an implementation of smart contracts for Cardano which are written in a very strict subset of valid Python.
 The general philosophy of this project is to write a compiler that 
 ensure the following:
@@ -30,6 +27,13 @@ If the program compiles then:
 - Flexible. Imperative, functional, the way you want it.
 - Efficient & Secure. Static type inference ensures strict typing and optimized code
 
+Note this is the sister project of [eopsin](https://github.com/ImperatorLang/eopsin).
+It uses an even more restricted subset of python (for example no if & while).
+The benefit is that the resulting code is greatly reduced in size and cpu/memory consumption.
+
+Eopsin is more comfortable to use than hebi.
+If you want to start building, write your contract in eopsin first.
+Then, after everything works to your pleasing, try to port to hebi and enjoy the performance gains.
 
 ### Getting Started
 
@@ -72,11 +76,7 @@ class CancelDatum(PlutusData):
 
 
 def validator(datum: CancelDatum, redeemer: None, context: ScriptContext) -> None:
-    sig_present = False
-    for s in context.tx_info.signatories:
-        if datum.pubkeyhash == s:
-            sig_present = True
-    assert sig_present, "Required signature missing"
+    assert datum.pubkeyhash in context.tx_info.signatories, "Required signature missing"
 ```
 
 All contracts written in hebi are 100% valid python.
@@ -106,7 +106,8 @@ The deploy process generates all artifacts required for usage with common librar
 hebi build examples/smart_contracts/assert_sum.py
 ```
 
-See the [tutorial by `pycardano`](https://pycardano.readthedocs.io/en/latest/guides/plutus.html) for explanations how to build transactions with `hebi` contracts.
+See the [tutorial by `pycardano`](https://pycardano.readthedocs.io/en/latest/guides/plutus.html) for explanations how to build transactions with `eopsin` contracts.
+Contracts in hebi are invoked the same, so you can just follow the tutorial there.
 
 ### The small print
 
@@ -121,7 +122,15 @@ You will be notified of which constructs are not supported when trying to compil
 
 ### Name
 
-Hebi is japanese for "snake", which is a play on words on python, the underlying language.
+Hebi is japanese for "snake", which is a play on words on `python`, the underlying language.
+
+### Versioning scheme
+
+Since this project builds on top of eopsin, it has a particular versioning scheme.
+The first three numbers indicate the version of `hebi` (starting at `0.1.0`).
+Then follows the latest version number of `eopsin` which was merged into the project (starting at `0.9.3`).
+This is intended to help navigating releases among both packages, where it might be important
+that a recent eopsin release is integrated that contains a security patch.
 
 ## Contributing
 

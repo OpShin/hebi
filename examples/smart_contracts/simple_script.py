@@ -53,17 +53,17 @@ def validate_script(
 ) -> bool:
     script: Script = script_raw  # cast to Script in the type system to avoid recursive type definition
     if isinstance(script, RequireSignature):
-        res = script.vkeyhash in signatories
+        return script.vkeyhash in signatories
     elif isinstance(script, RequireAllOf):
-        res = all(
+        return all(
             [validate_script(s, signatories, valid_range) for s in script.scripts]
         )
     elif isinstance(script, RequireAnyOf):
-        res = any(
+        return any(
             [validate_script(s, signatories, valid_range) for s in script.scripts]
         )
     elif isinstance(script, RequireMOf):
-        res = (
+        return (
             sum(
                 [
                     1 if validate_script(s, signatories, valid_range) else 0
@@ -78,29 +78,27 @@ def validate_script(
         if isinstance(upper_limit, FinitePOSIXTime):
             upper_closed = upper_bound.closed
             if isinstance(upper_closed, TrueData):
-                res = upper_limit.time <= script.unixtimestamp
+                return upper_limit.time <= script.unixtimestamp
             else:
-                res = upper_limit.time < script.unixtimestamp
+                return upper_limit.time < script.unixtimestamp
         elif isinstance(upper_limit, PosInfPOSIXTime):
-            res = False
+            return False
         elif isinstance(upper_limit, NegInfPOSIXTime):
-            res = True
+            return True
     elif isinstance(script, RequireAfter):
         lower_bound = valid_range.lower_bound
         lower_limit = lower_bound.limit
         if isinstance(lower_limit, FinitePOSIXTime):
             lower_closed = lower_bound.closed
             if isinstance(lower_closed, TrueData):
-                res = lower_limit.time >= script.unixtimestamp
+                return lower_limit.time >= script.unixtimestamp
             else:
-                res = lower_limit.time > script.unixtimestamp
+                return lower_limit.time > script.unixtimestamp
         elif isinstance(lower_limit, PosInfPOSIXTime):
-            res = True
+            return True
         elif isinstance(lower_limit, NegInfPOSIXTime):
-            res = False
-    else:
-        assert False, "Invalid simple script passed"
-    return res
+            return False
+    assert False, "Invalid simple script passed"
 
 
 # to fully emulate simple script behaviour, compile with --force-three-params

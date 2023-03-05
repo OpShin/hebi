@@ -1,4 +1,4 @@
-from eopsin.prelude import *
+from hebi.prelude import *
 
 
 def validator(datum: int, redeemer: int, context: Nothing) -> None:

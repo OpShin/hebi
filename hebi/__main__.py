@@ -13,8 +13,8 @@ import pycardano
 import uplc
 import uplc.ast
 
-from eopsin import __version__, compiler
-from eopsin.util import CompilerError, data_from_json
+from hebi import __version__, compiler
+from hebi.util import CompilerError, data_from_json
 
 
 class Command(enum.Enum):

@@ -1,4 +1,4 @@
-from eopsin.prelude import *
+from hebi.prelude import *
 
 
 @dataclass()

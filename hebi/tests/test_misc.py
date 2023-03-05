@@ -8,6 +8,7 @@ from hypothesis import strategies as st
 from parameterized import parameterized
 
 from .. import compiler, prelude, type_inference
+from ..util import CompilerError
 
 
 def fib(n):
@@ -453,7 +454,7 @@ def validator(_: None) -> int:
     def test_overopt_removedeadvar(self):
         # this tests that errors that are caused by assignments are actually triggered at the time of assigning
         source_code = """
-from eopsin.prelude import *
+from hebi.prelude import *
 def validator(x: Token) -> bool:
     a = x.policy_id
     return True
@@ -514,7 +515,7 @@ def validator(x: None) -> bytes:
     def test_wrap_into_generic_data(self):
         # this tests that errors that are caused by assignments are actually triggered at the time of assigning
         source_code = """
-from eopsin.prelude import *
+from hebi.prelude import *
 def validator(_: None) -> SomeOutputDatum:
     return SomeOutputDatum(b"a")
         """
@@ -580,7 +581,7 @@ def validator(_: None) -> SomeOutputDatum:
 
     def test_union_type_attr_access_all_records(self):
         source_code = """
-from eopsin.prelude import *
+from hebi.prelude import *
 
 @dataclass()
 class A(PlutusData):
@@ -601,7 +602,7 @@ def validator(x: Union[A, B]) -> Union[SomeOutputDatumHash, SomeOutputDatum]:
     @unittest.expectedFailure
     def test_union_type_all_records_same_constr(self):
         source_code = """
-from eopsin.prelude import *
+from hebi.prelude import *
 
 @dataclass()
 class A(PlutusData):
@@ -622,7 +623,7 @@ def validator(x: Union[A, B]) -> Union[SomeOutputDatumHash, SomeOutputDatum]:
     @unittest.expectedFailure
     def test_union_type_attr_access_all_records_same_constr(self):
         source_code = """
-from eopsin.prelude import *
+from hebi.prelude import *
 
 @dataclass()
 class A(PlutusData):
@@ -647,7 +648,7 @@ def validator(x: Union[A, B]) -> int:
 
     def test_union_type_attr_access_maximum_type(self):
         source_code = """
-from eopsin.prelude import *
+from hebi.prelude import *
 
 @dataclass()
 class A(PlutusData):
@@ -667,7 +668,7 @@ def validator(x: Union[A, B]) -> int:
 
     def test_union_type_attr_anytype(self):
         source_code = """
-from eopsin.prelude import *
+from hebi.prelude import *
 
 @dataclass()
 class A(PlutusData):
@@ -684,3 +685,17 @@ def validator(x: Union[A, B]) -> Anything:
 """
         ast = compiler.parse(source_code)
         code = compiler.compile(ast)
+
+    def test_no_reassign(self):
+        # this tests that variables can not be re-assigned
+        source_code = """
+def validator(x: int) -> int:
+    x = 1
+    return x
+        """
+        ast = compiler.parse(source_code)
+        try:
+            code = compiler.compile(ast)
+            self.fail("Compilation passed")
+        except CompilerError:
+            pass

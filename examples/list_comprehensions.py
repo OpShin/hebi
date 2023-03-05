@@ -1,4 +1,4 @@
-from eopsin.prelude import *
+from hebi.prelude import *
 
 
 def validator(n: int, even: bool) -> List[int]:

@@ -7,7 +7,7 @@ from os import path
 
 from setuptools import find_packages, setup
 
-import eopsin
+import hebi
 
 here = path.abspath(path.dirname(__file__))
 
@@ -16,13 +16,13 @@ with open(path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
 setup(
-    name="eopsin-lang",
-    version=eopsin.__version__,
+    name="hebi",
+    version=hebi.__version__,
     description="A simple pythonic programming language for Smart Contracts on Cardano ",
-    author=eopsin.__author__,
-    author_email=eopsin.__author_email__,
-    url=eopsin.__url__,
-    py_modules=["eopsin"],
+    author=hebi.__author__,
+    author_email=hebi.__author_email__,
+    url=hebi.__url__,
+    py_modules=["hebi"],
     packages=find_packages(),
     install_requires=[
         "uplc==0.5.6",
@@ -37,7 +37,7 @@ setup(
     ],
     long_description=long_description,
     long_description_content_type="text/markdown",
-    license=eopsin.__license__,
+    license=hebi.__license__,
     classifiers=[
         "Development Status :: 3 - Alpha",
         # Indicate who your project is intended for
@@ -51,8 +51,8 @@ setup(
     ],
     keywords="python cardano smart contract blockchain verification haskell",
     python_requires=">=3.8, <3.9",
-    test_suite="eopsin.tests",
+    test_suite="hebi.tests",
     entry_points={
-        "console_scripts": ["eopsin=eopsin.__main__:main"],
+        "console_scripts": ["hebi=hebi.__main__:main"],
     },
 )

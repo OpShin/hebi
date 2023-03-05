@@ -1,4 +1,4 @@
-from eopsin.prelude import *
+from hebi.prelude import *
 
 
 # inspired by https://github.com/MuesliSwapTeam/muesliswap-cardano-pool-contracts/blob/main/dex/src/MuesliSwapPools/BatchOrder/Types.hs

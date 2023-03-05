@@ -6,10 +6,8 @@ Every evaluated part of the python expression tree results in a statemonad of lo
 The exception are functions:
 
 The ABI for functions is that they are a lambda function with `n + 1` arguments:
+ - the original function (for recursion)
  - the original `n` arguments of the function
- - `s`: the statemonad of the callee 
-   - this may or may not include the defined function, as the name might be overwritten
-   - functions that need to be recursive should bind to themselves before being exposed to the python ABI
 
 They should return only one value, their return value.
 As a direct consequence, eopsin may only allow a pure subset of python (except for `print`).
@@ -62,7 +60,7 @@ may never be PlutusData with constructor id 0 - which is bearable.
 In order to benefit from the double functionality, make sure to compile the code with the flag `--force-three-params`.
 
 ```bash
-eopsin compile examples/smart_contracts/wrapped_token.py --force-three-params
+hebi compile examples/smart_contracts/wrapped_token.py --force-three-params
 ```
 
 ## Parameterized Scripts
@@ -102,5 +100,5 @@ The double minting functionality is _not_ affected by parameterization.
 You can compile a contract with initialized parameters like this (in the same way you would evaluate a contract with parameters)
 
 ```bash
-eopsin compile contract.py "param_1_json_value" ... "param_n_json_value"
+hebi compile contract.py "param_1_json_value" ... "param_n_json_value"
 ```

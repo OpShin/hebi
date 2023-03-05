@@ -42,6 +42,16 @@ INITIAL_SCOPE.update(
 )
 
 
+class ReturnExtractor(NodeVisitor):
+    """Utility to find all Return statements in an AST subtree"""
+
+    def __init__(self):
+        self.returns = []
+
+    def visit_Return(self, node: Return) -> None:
+        self.returns.append(node)
+
+
 class AggressiveTypeInferencer(CompilingNodeTransformer):
     step = "Static Type Inference"
 
@@ -351,14 +361,18 @@ class AggressiveTypeInferencer(CompilingNodeTransformer):
         # We need the function type inside for recursion
         self.set_variable_type(node.name, tfd.typ)
         tfd.body = [self.visit(s) for s in node.body]
+        rets_extractor = ReturnExtractor()
+        for b in tfd.body:
+            rets_extractor.visit(b)
+        rets = rets_extractor.returns
         # Check that return type and annotated return type match
-        if not isinstance(node.body[-1], Return):
+        if not rets:
             assert (
                 functyp.rettyp == NoneInstanceType
             ), f"Function '{node.name}' has no return statement but is supposed to return not-None value"
         else:
-            assert (
-                functyp.rettyp >= tfd.body[-1].typ
+            assert all(
+                functyp.rettyp >= r.typ for r in rets
             ), f"Function '{node.name}' annotated return type does not match actual return type"
         self.exit_scope()
         # We need the function type outside for usage

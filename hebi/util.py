@@ -7,29 +7,22 @@ import pluthon as plt
 import uplc.ast as uplc
 
 
-def PowImpl(x: plt.AST, y: plt.AST):
-    return plt.Apply(
-        plt.RecFun(
-            plt.Lambda(
-                ["f", "x", "y"],
-                plt.Ite(
-                    plt.LessThanEqualsInteger(plt.Var("y"), plt.Integer(0)),
-                    plt.Integer(1),
-                    plt.MultiplyInteger(
-                        plt.Var("x"),
-                        plt.Apply(
-                            plt.Var("f"),
-                            plt.Var("f"),
-                            plt.Var("x"),
-                            plt.SubtractInteger(plt.Var("y"), plt.Integer(1)),
-                        ),
-                    ),
-                ),
+PowImpl = plt.Lambda(
+    ["f", "x", "y"],
+    plt.Ite(
+        plt.LessThanEqualsInteger(plt.Var("y"), plt.Integer(0)),
+        plt.Integer(1),
+        plt.MultiplyInteger(
+            plt.Var("x"),
+            plt.Apply(
+                plt.Var("f"),
+                plt.Var("f"),
+                plt.Var("x"),
+                plt.SubtractInteger(plt.Var("y"), plt.Integer(1)),
             ),
         ),
-        x,
-        y,
-    )
+    ),
+)
 
 
 class PythonBuiltIn(Enum):
@@ -294,7 +287,7 @@ class PythonBuiltIn(Enum):
         plt.Trace(plt.Var("x"), plt.NoneData()),
     )
     # NOTE: only correctly defined for positive y
-    pow = plt.Lambda(["_", "x", "y"], PowImpl(plt.Var("x"), plt.Var("y")))
+    pow = PowImpl
     oct = plt.Lambda(
         ["_", "x"],
         plt.DecodeUtf8(

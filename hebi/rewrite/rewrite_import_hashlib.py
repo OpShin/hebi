@@ -77,9 +77,7 @@ class RewriteImportHashlib(CompilingNodeTransformer):
             additional_assigns.append(
                 TypedAssign(
                     targets=[TypedName(id=imported_name, typ=typ, ctx=Store())],
-                    value=RawPlutoExpr(
-                        typ=typ, expr=plt.Lambda(["_"], imported_fun.value)
-                    ),
+                    value=RawPlutoExpr(typ=typ, expr=imported_fun.value),
                 )
             )
         return additional_assigns

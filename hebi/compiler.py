@@ -60,7 +60,7 @@ BinOpMap = {
     },
     Pow: {
         IntegerInstanceType: {
-            IntegerInstanceType: PowImpl,
+            IntegerInstanceType: lambda x, y: plt.Apply(plt.RecFun(PowImpl), x, y),
         }
     },
 }

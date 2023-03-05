@@ -28,19 +28,23 @@ ListingAction = Union[Buy, Unlist]
 
 def check_paid(txouts: List[TxOut], addr: Address, price: int) -> None:
     """Check that the correct amount has been paid to the vendor (or more)"""
-    res = False
-    for txo in txouts:
-        if txo.value.get(b"", {b"": 0}).get(b"", 0) >= price and txo.address == addr:
-            res = True
-    assert res, "Did not send required amount of lovelace to vendor"
+    assert any(
+        [
+            txo.value.get(b"", {b"": 0}).get(b"", 0) >= price and txo.address == addr
+            for txo in txouts
+        ]
+    ), "Did not send required amount of lovelace to vendor"
 
 
 def check_single_utxo_spent(txins: List[TxInInfo], addr: Address) -> None:
     """To prevent double spending, count how many UTxOs are unlocked from the contract address"""
-    count = 0
-    for txi in txins:
-        if txi.resolved.address == addr:
-            count += 1
+    count = sum(
+        [
+            1 if txi.resolved.address == addr else 0
+            for txi in txins
+            if txi.resolved.address == addr
+        ]
+    )
     assert count == 1, "Only 1 contract utxo allowed"
 
 

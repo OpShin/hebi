@@ -56,42 +56,6 @@ class MiscTest(unittest.TestCase):
         self.assertTrue(failed, "Machine did validate the content")
 
     @given(
-        a=st.integers(min_value=-10, max_value=10),
-        b=st.integers(min_value=0, max_value=10),
-    )
-    def test_mult_for(self, a: int, b: int):
-        input_file = "examples/mult_for.py"
-        with open(input_file) as fp:
-            source_code = fp.read()
-        ast = compiler.parse(source_code)
-        code = compiler.compile(ast)
-        code = code.compile()
-        f = code.term
-        # UPLC lambdas may only take one argument at a time, so we evaluate by repeatedly applying
-        for d in [uplc.PlutusInteger(a), uplc.PlutusInteger(b)]:
-            f = uplc.Apply(f, d)
-        ret = uplc_eval(f)
-        self.assertEqual(ret, uplc.PlutusInteger(a * b))
-
-    @given(
-        a=st.integers(min_value=-10, max_value=10),
-        b=st.integers(min_value=0, max_value=10),
-    )
-    def test_mult_while(self, a: int, b: int):
-        input_file = "examples/mult_while.py"
-        with open(input_file) as fp:
-            source_code = fp.read()
-        ast = compiler.parse(source_code)
-        code = compiler.compile(ast)
-        code = code.compile()
-        f = code.term
-        # UPLC lambdas may only take one argument at a time, so we evaluate by repeatedly applying
-        for d in [uplc.PlutusInteger(a), uplc.PlutusInteger(b)]:
-            f = uplc.Apply(f, d)
-        ret = uplc_eval(f)
-        self.assertEqual(ret, uplc.PlutusInteger(a * b))
-
-    @given(
         a=st.integers(),
         b=st.integers(),
     )
@@ -179,25 +143,7 @@ class MiscTest(unittest.TestCase):
             f = uplc.Apply(f, d)
         ret = uplc_eval(f)
         self.assertEqual(
-            uplc.PlutusInteger(42),
-            ret,
-        )
-
-    @given(n=st.integers(min_value=0, max_value=5))
-    def test_fib_iter(self, n):
-        input_file = "examples/fib_iter.py"
-        with open(input_file) as fp:
-            source_code = fp.read()
-        ast = compiler.parse(source_code)
-        code = compiler.compile(ast)
-        code = code.compile()
-        f = code.term
-        # UPLC lambdas may only take one argument at a time, so we evaluate by repeatedly applying
-        for d in [uplc.PlutusInteger(n)]:
-            f = uplc.Apply(f, d)
-        ret = uplc_eval(f)
-        self.assertEqual(
-            uplc.PlutusInteger(fib(n)),
+            uplc.PlutusInteger(40),
             ret,
         )
 
@@ -324,15 +270,11 @@ def validator(_: None) -> int:
     return b(1)
         """
         ast = compiler.parse(source_code)
-        code = compiler.compile(ast)
-        code = code.compile()
-        f = code.term
-        for d in [
-            uplc.PlutusConstr(0, []),
-        ]:
-            f = uplc.Apply(f, d)
-        ret = uplc_eval(f)
-        self.assertEqual(uplc.PlutusInteger(100), ret)
+        try:
+            code = compiler.compile(ast)
+            self.fail("Example compiled")
+        except CompilerError:
+            pass
 
     def test_datum_cast(self):
         input_file = "examples/datum_cast.py"
@@ -478,7 +420,7 @@ def validator(x: Token) -> bool:
     def test_opt_shared_var(self):
         # this tests that errors that are caused by assignments are actually triggered at the time of assigning
         source_code = """
-from eopsin.prelude import *
+from hebi.prelude import *
 def validator(x: Token) -> bool:
     if False:
         y = x

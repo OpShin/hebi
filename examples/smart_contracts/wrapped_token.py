@@ -10,22 +10,18 @@ def all_tokens_unlocked_from_contract_address(
     txins: List[TxInInfo], address: Address, token: Token
 ) -> int:
     # generally always iterate over all inputs to avoid double spending
-    res = 0
-    for txi in txins:
-        if txi.resolved.address == address:
-            res += txi.resolved.value.get(token.policy_id, {b"": 0}).get(
-                token.token_name, 0
-            )
-    return res
+    return sum(
+        [
+            txi.resolved.value.get(token.policy_id, {b"": 0}).get(token.token_name, 0)
+            for txi in txins
+            if txi.resolved.address == address
+        ]
+    )
 
 
 def own_spent_utxo(txins: List[TxInInfo], p: Spending) -> TxOut:
     # obtain the resolved txout that is going to be spent from this contract address
-    for txi in txins:
-        if txi.out_ref == p.tx_out_ref:
-            own_txout = txi.resolved
-    # This throws a name error if the txout was not found
-    return own_txout
+    return [txi.resolved for txi in txins if txi.out_ref == p.tx_out_ref][0]
 
 
 def own_policy_id(own_spent_utxo: TxOut) -> PolicyId:
@@ -44,15 +40,16 @@ def own_address(own_policy_id: PolicyId) -> Address:
 def all_tokens_locked_at_contract_address(
     txouts: List[TxOut], address: Address, token: Token
 ) -> int:
-    res = 0
-    for txo in txouts:
-        if txo.address == address:
-            res += txo.value.get(token.policy_id, {b"": 0}).get(token.token_name, 0)
-            # enforce a small inlined datum
-            assert txo.datum == SomeOutputDatum(
-                b""
-            ), "Does not attach correct datum to script output"
-    return res
+    relevant_txos = [txo for txo in txouts if txo.address == address]
+    assert all(
+        [txo.datum == SomeOutputDatum(b"") for txo in relevant_txos]
+    ), "Does not attach correct datum to script output"
+    return sum(
+        [
+            txo.value.get(token.policy_id, {b"": 0}).get(token.token_name, 0)
+            for txo in relevant_txos
+        ]
+    )
 
 
 # this is a parameterized contract. The first three arguments are

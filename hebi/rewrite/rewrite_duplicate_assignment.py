@@ -48,8 +48,20 @@ class RewriteDuplicateAssignment(CompilingNodeTransformer):
     def visit_If(self, node: If):
         node_cp = copy(node)
         node_cp.test = self.visit(node.test)
+        self.enter_scope()
+        # all the names from the previous scope STILL cause a conflict
+        self.avail_names[-1].extend(self.avail_names[-2])
         node_cp.body = [self.visit(s) for s in node.body]
+        body_scope_cp = self.avail_names[-1].copy()
+        self.exit_scope()
+        self.enter_scope()
+        # all the names from the previous scope STILL cause a conflict, but not from the body
+        self.avail_names[-1].extend(self.avail_names[-2])
         node_cp.orelse = [self.visit(s) for s in node.orelse]
+        else_scope_cp = self.avail_names[-1].copy()
+        self.exit_scope()
+        # after the if/else, all potentially assigned variables in each branch are potentially available
+        self.avail_names[-1].extend(set(body_scope_cp).union(else_scope_cp))
         return node_cp
 
     def visit_Assign(self, node: Assign):

@@ -282,7 +282,7 @@ class UPLCCompiler(CompilingNodeTransformer):
         ), "Assignments to other things then names are not supported"
         compiled_e = self.visit(node.value)
         varname = node.targets[0].id
-        return lambda x: plt.Let([varname, compiled_e], x)
+        return lambda x: plt.Let([(varname, compiled_e)], x)
 
     def visit_AnnAssign(self, node: AnnAssign) -> typing.Callable[[plt.AST], plt.AST]:
         assert isinstance(
@@ -295,7 +295,7 @@ class UPLCCompiler(CompilingNodeTransformer):
         # we need to map this as it will originate from PlutusData
         # (\{STATEMONAD} -> (\x -> if (x ==b {self.visit(node.targets[0])}) then ({compiled_e} {STATEMONAD}) else ({STATEMONAD} x)))
         return lambda x: plt.Let(
-            [node.target.id, transform_ext_params_map(node.target.typ)(compiled_e)], x
+            [(node.target.id, transform_ext_params_map(node.target.typ)(compiled_e))], x
         )
 
     def visit_Name(self, node: TypedName) -> plt.AST:

@@ -311,7 +311,7 @@ class DictType(ClassType):
     def attribute(self, attr) -> plt.AST:
         if attr == "get":
             return plt.Lambda(
-                ["_", "self", "key", "default"],
+                ["self", "_", "key", "default"],
                 transform_ext_params_map(self.value_typ)(
                     plt.SndPair(
                         plt.FindList(
@@ -336,7 +336,7 @@ class DictType(ClassType):
             )
         if attr == "keys":
             return plt.Lambda(
-                ["_", "self"],
+                ["self", "_"],
                 plt.MapList(
                     plt.Var("self"),
                     plt.Lambda(
@@ -350,7 +350,7 @@ class DictType(ClassType):
             )
         if attr == "values":
             return plt.Lambda(
-                ["_", "self"],
+                ["self", "_"],
                 plt.MapList(
                     plt.Var("self"),
                     plt.Lambda(
@@ -694,7 +694,7 @@ class ByteStringType(AtomicType):
     def attribute(self, attr) -> plt.AST:
         if attr == "decode":
             # No codec -> only the default (utf8) is allowed
-            return plt.Lambda(["_", "x"], plt.DecodeUtf8(plt.Var("x")))
+            return plt.Lambda(["x", "_"], plt.DecodeUtf8(plt.Var("x")))
         return super().attribute(attr)
 
     def cmp(self, op: cmpop, o: "Type") -> plt.AST:

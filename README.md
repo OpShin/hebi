@@ -56,7 +56,7 @@ A short non-complete introduction in starting to write smart contracts follows.
 1. Make sure you understand python. Hebi works like python and uses python. There are tons of tutorials for python, choose what suits you best.
 2. Make sure your contract is valid python and the types check out. Write simple contracts first and run them using `hebi eval` to get a feeling for how they work.
 3. Make sure your contract is valid hebi code. Run `hebi compile` and look at the compiler erros for guidance along what works and doesn't work and why.
-4. Dig into the [`examples`](https://github.com/ImperatorLang/hebi/tree/master/examples) to understand common patterns. Check out the [`prelude`](https://github.com/ImperatorLang/hebi/blob/master/hebi/prelude.py) for understanding how the Script Context is structured and how complex datums are defined.
+4. Dig into the [`examples`](https://github.com/ImperatorLang/hebi/tree/master/examples) to understand common patterns. Check out the [`prelude`](https://imperatorlang.github.io/hebi/hebi/prelude.html) for understanding how the Script Context is structured and how complex datums are defined.
 
 A simple contract called the "Gift Contract" verifies that only specific wallets can withdraw money.
 They are authenticated by a signature.

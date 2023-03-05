@@ -4,10 +4,9 @@ python:
 dist: bionic
 os: linux
 arch:
-  - arm64
+- arm64
 jobs:
   fast_finish: true
-
 install:
 - if [[ $TRAVIS_PYTHON_VERSION == 3.7 ]]; then pip install -U importlib_metadata;
   fi
@@ -16,19 +15,25 @@ install:
 - pip install -e .
 script:
 - black --check .
-- coverage run --source=eopsin setup.py test
-# the samples from the README file
-- >
-  coverage run -a --source=eopsin -m eopsin eval examples/smart_contracts/assert_sum.py "{\"int\": 4}" "{\"int\": 38}" "{\"constructor\": 0, \"fields\": []}"
-- >
-  coverage run -a --source=eopsin -m eopsin compile examples/smart_contracts/assert_sum.py > assert_sum.uplc
-- >
-  coverage run -a --source=eopsin -m eopsin eval_uplc examples/smart_contracts/assert_sum.py "{\"int\": 4}" "{\"int\": 38}" "{\"constructor\": 0, \"fields\": []}"
-- >
-  coverage run -a --source=eopsin -m eopsin compile_pluto examples/smart_contracts/assert_sum.py
-- >
-  coverage run -a --source=eopsin -m eopsin build examples/smart_contracts/assert_sum.py
+- coverage run --source=hebi setup.py test
+- 'coverage run -a --source=hebi -m hebi eval examples/smart_contracts/assert_sum.py
+  "{\"int\": 4}" "{\"int\": 38}" "{\"constructor\": 0, \"fields\": []}"
 
+  '
+- 'coverage run -a --source=hebi -m hebi compile examples/smart_contracts/assert_sum.py
+  > assert_sum.uplc
+
+  '
+- 'coverage run -a --source=hebi -m hebi eval_uplc examples/smart_contracts/assert_sum.py
+  "{\"int\": 4}" "{\"int\": 38}" "{\"constructor\": 0, \"fields\": []}"
+
+  '
+- 'coverage run -a --source=hebi -m hebi compile_pluto examples/smart_contracts/assert_sum.py
+
+  '
+- 'coverage run -a --source=hebi -m hebi build examples/smart_contracts/assert_sum.py
+
+  '
 after_success:
 - coverage report
 - coveralls
@@ -41,4 +46,4 @@ deploy:
   skip_existing: true
   username: __token__
   password:
-    secure: qCnwlzVj1uqWN6cbfNZnuSAtAVx5zvD5MgLuCsN7RcQ7Ss7Ji4QADGy/yxIkkSc6BwsLogub2Lw9147b6fwX9LULh0tzTnca7h5YAZzuLDP9Mov5LNmL251uBh1IudBlWiGp5ZMbaG4E/A1/nFYwjE6ZnOS5A/a9aCelUbY5MDGsXyELjtbRSy1LbuAAh3ya+mn8RuExF60KYCUuo86cRwYQ5s0gZQq+O0iGGdMWldQ7Dc0NEjTgGQowTtYPebNBdGRQckTKtemY/bZdToOgl3KuKsdwroSgMkp+4NwcFxSQyWBknEdAWhACROvemkF67bT230LtlW8Ttst5Sg9NIfQmtT/5H0/5inGildex3jMfuM2KLv9e724M1ZloUZhSaNclT7ja+3cQqDj2Mxw9Qy7xtzVpq4z6iNYhcgcVMBoctZFaStjq+JmvrBNPka5IYIip4h7vDk9AvtlA14UofPYP2e4AxClhfO1WC/ICI33cBV49ldxlgp3DvTrq+ZWItLRx0isgMAC85qEQW2huxnhMU/x1MAo8QqO4Il5WuunM9rNibp6WWmsJQru/MurANAI/LY2XtjtElispt3Bg1Cg+uPYhSxH8Zh8bOMyjLGasdpC7flp2DwSEY7jwUccNGheS4y6OtBZ68KoYjAh267uOgEYzQCL6966oaWxQ24k=
+    secure: M2/LS3oSobTfz6UV/4GLkE3PrSYthuXvi2qvYBieLMmbzw8y5hnItdhRs3KWL3jRZNT0Fg5QUhC4QuLaNXFxHu9TAKAlh2uQkHCZiuR71OnEm15g6KC8FBWh3SXUgvo1EjOLJbWZHoH/iKDU0b++w8LpY/gJAQyNwFUhVFVhiDiUebPG0i7olsRbyHaA9b5MivrzZIxh+gDORWIXEC11sRmRuVz+CbJuwKL0drz9T+qwPnk6aJSNbLTgXTOO5Arnu7YSx6WAXTmfHxKzLYwlNGN2GqiRN0jUdUO9iDxODNDpfMfGN1ippu+04ZxUsQa1HMAm9mo7Q8NOKe7Q8He3DxjSYpyZCPgOiL+z/Ej7E5cb5N1LOaHI3Y9pxEeDPjjDVrJ8D0BQZvnWwYgFCQnVu3OAi+6BYRq2hkVBosgfP+ibACaKJdIfAl+vN2opRo/DwuvOyg7omCCy9ZeVIGtfzd207GVALARKZuXqJLslEheIPDXCOzEzBoVAonf9LDVnj7GUIZuoUHhm+N3FPUQzBkr4WtRIbjjvk0agqHBaUiZNI/VVQ8KsjcPxeGNlrD0pUAAr7V6IhBo2mfbEPPAkcW4alcBaRH2wpsxYwpJ28+8ilzzqFFuzmmzt7jzfAd7g1KjHKTpmIabc+h7FNFcWZOoSOw88EuwtpCRNBO01yJI=

@@ -8,6 +8,7 @@ from hypothesis import strategies as st
 from parameterized import parameterized
 
 from .. import compiler, prelude, type_inference
+from ..util import CompilerError
 
 
 def fib(n):
@@ -684,3 +685,17 @@ def validator(x: Union[A, B]) -> Anything:
 """
         ast = compiler.parse(source_code)
         code = compiler.compile(ast)
+
+    def test_no_reassign(self):
+        # this tests that variables can not be re-assigned
+        source_code = """
+def validator(x: int) -> int:
+    x = 1
+    return x
+        """
+        ast = compiler.parse(source_code)
+        try:
+            code = compiler.compile(ast)
+            self.fail("Compilation passed")
+        except CompilerError:
+            pass

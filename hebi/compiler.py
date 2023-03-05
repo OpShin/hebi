@@ -2,7 +2,6 @@ import logging
 from logging import getLogger
 from ast import fix_missing_locations
 
-from .rewrite.rewrite_augassign import RewriteAugAssign
 from .rewrite.rewrite_forbidden_overwrites import RewriteForbiddenOverwrites
 from .rewrite.rewrite_import import RewriteImport
 from .rewrite.rewrite_import_dataclasses import RewriteImportDataclasses
@@ -13,6 +12,7 @@ from .rewrite.rewrite_inject_builtins import RewriteInjectBuiltins
 from .rewrite.rewrite_inject_builtin_constr import RewriteInjectBuiltinsConstr
 from .rewrite.rewrite_remove_type_stuff import RewriteRemoveTypeStuff
 from .rewrite.rewrite_tuple_assign import RewriteTupleAssign
+from .rewrite.rewrite_duplicate_assignment import RewriteDuplicateAssignment
 from .optimize.optimize_remove_pass import OptimizeRemovePass
 from .optimize.optimize_remove_deadvars import OptimizeRemoveDeadvars
 from .optimize.optimize_varlen import OptimizeVarlen
@@ -673,7 +673,6 @@ def compile(prog: AST, force_three_params=False):
         # Important to call this one first - it imports all further files
         RewriteImport(),
         # Rewrites that simplify the python code
-        RewriteAugAssign(),
         RewriteTupleAssign(),
         RewriteImportPlutusData(),
         RewriteImportHashlib(),
@@ -681,6 +680,7 @@ def compile(prog: AST, force_three_params=False):
         RewriteForbiddenOverwrites(),
         RewriteImportDataclasses(),
         RewriteInjectBuiltins(),
+        RewriteDuplicateAssignment(),
         # The type inference needs to be run after complex python operations were rewritten
         AggressiveTypeInferencer(),
         # Rewrites that circumvent the type inference or use its results

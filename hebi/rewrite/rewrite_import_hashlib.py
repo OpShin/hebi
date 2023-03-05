@@ -28,9 +28,9 @@ HashInstanceType = InstanceType(HashType())
 
 
 class PythonHashlib(Enum):
-    sha256 = plt.Lambda(["x", "_"], plt.Lambda(["_"], plt.Sha2_256(plt.Var("x"))))
-    sha3_256 = plt.Lambda(["x", "_"], plt.Lambda(["_"], plt.Sha3_256(plt.Var("x"))))
-    blake2b = plt.Lambda(["x", "_"], plt.Lambda(["_"], plt.Blake2b_256(plt.Var("x"))))
+    sha256 = plt.Lambda(["_", "x"], plt.Lambda(["_"], plt.Sha2_256(plt.Var("x"))))
+    sha3_256 = plt.Lambda(["_", "x"], plt.Lambda(["_"], plt.Sha3_256(plt.Var("x"))))
+    blake2b = plt.Lambda(["_", "x"], plt.Lambda(["_"], plt.Blake2b_256(plt.Var("x"))))
 
 
 PythonHashlibTypes = {

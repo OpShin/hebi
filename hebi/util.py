@@ -34,7 +34,7 @@ def PowImpl(x: plt.AST, y: plt.AST):
 
 class PythonBuiltIn(Enum):
     all = plt.Lambda(
-        ["xs", "_"],
+        ["_", "xs"],
         plt.FoldList(
             plt.Var("xs"),
             plt.Lambda(["x", "a"], plt.And(plt.Var("x"), plt.Var("a"))),
@@ -42,7 +42,7 @@ class PythonBuiltIn(Enum):
         ),
     )
     any = plt.Lambda(
-        ["xs", "_"],
+        ["_", "xs"],
         plt.FoldList(
             plt.Var("xs"),
             plt.Lambda(["x", "a"], plt.Or(plt.Var("x"), plt.Var("a"))),
@@ -50,7 +50,7 @@ class PythonBuiltIn(Enum):
         ),
     )
     abs = plt.Lambda(
-        ["x", "_"],
+        ["_", "x"],
         plt.Ite(
             plt.LessThanInteger(plt.Var("x"), plt.Integer(0)),
             plt.Negate(plt.Var("x")),
@@ -60,7 +60,7 @@ class PythonBuiltIn(Enum):
     # maps an integer to a unicode code point and decodes it
     # reference: https://en.wikipedia.org/wiki/UTF-8#Encoding
     chr = plt.Lambda(
-        ["x", "_"],
+        ["_", "x"],
         plt.DecodeUtf8(
             plt.Ite(
                 plt.LessThanInteger(plt.Var("x"), plt.Integer(0x0)),
@@ -173,9 +173,9 @@ class PythonBuiltIn(Enum):
             )
         ),
     )
-    breakpoint = plt.Lambda(["_"], plt.NoneData())
+    breakpoint = plt.NoneData()
     hex = plt.Lambda(
-        ["x", "_"],
+        ["_", "x"],
         plt.DecodeUtf8(
             plt.Let(
                 [
@@ -260,7 +260,7 @@ class PythonBuiltIn(Enum):
     )
     len = auto()
     max = plt.Lambda(
-        ["xs", "_"],
+        ["_", "xs"],
         plt.FoldList(
             plt.TailList(plt.Var("xs")),
             plt.Lambda(
@@ -275,7 +275,7 @@ class PythonBuiltIn(Enum):
         ),
     )
     min = plt.Lambda(
-        ["xs", "_"],
+        ["_", "xs"],
         plt.FoldList(
             plt.TailList(plt.Var("xs")),
             plt.Lambda(
@@ -290,13 +290,13 @@ class PythonBuiltIn(Enum):
         ),
     )
     print = plt.Lambda(
-        ["x", "_"],
+        ["_", "x"],
         plt.Trace(plt.Var("x"), plt.NoneData()),
     )
     # NOTE: only correctly defined for positive y
-    pow = plt.Lambda(["x", "y", "_"], PowImpl(plt.Var("x"), plt.Var("y")))
+    pow = plt.Lambda(["_", "x", "y"], PowImpl(plt.Var("x"), plt.Var("y")))
     oct = plt.Lambda(
-        ["x", "_"],
+        ["_", "x"],
         plt.DecodeUtf8(
             plt.Let(
                 [
@@ -366,12 +366,12 @@ class PythonBuiltIn(Enum):
         ),
     )
     range = plt.Lambda(
-        ["limit", "_"],
+        ["_", "limit"],
         plt.Range(plt.Var("limit")),
     )
     reversed = auto()
     sum = plt.Lambda(
-        ["xs", "_"],
+        ["_", "xs"],
         plt.FoldList(
             plt.Var("xs"), plt.BuiltIn(uplc.BuiltInFun.AddInteger), plt.Integer(0)
         ),
@@ -392,11 +392,11 @@ class LenImpl(PolymorphicFunction):
         arg = args[0]
         assert isinstance(arg, InstanceType), "Can only determine length of instances"
         if arg == ByteStringInstanceType:
-            return plt.Lambda(["x", "_"], plt.LengthOfByteString(plt.Var("x")))
+            return plt.Lambda(["_", "x"], plt.LengthOfByteString(plt.Var("x")))
         elif isinstance(arg.typ, ListType):
             # simple list length function
             return plt.Lambda(
-                ["x", "_"],
+                ["_", "x"],
                 plt.FoldList(
                     plt.Var("x"),
                     plt.Lambda(
@@ -425,7 +425,7 @@ class ReversedImpl(PolymorphicFunction):
         if isinstance(arg.typ, ListType):
             empty_l = empty_list(arg.typ.typ)
             return plt.Lambda(
-                ["xs", "_"],
+                ["_", "xs"],
                 plt.FoldList(
                     plt.Var("xs"),
                     plt.Lambda(["a", "x"], plt.MkCons(plt.Var("x"), plt.Var("a"))),

@@ -93,7 +93,7 @@ class RecordType(ClassType):
             )
         # then build a constr type with this PlutusData
         return plt.Lambda(
-            [n for n, _ in self.record.fields] + ["_"],
+            ["_"] + [n for n, _ in self.record.fields],
             plt.ConstrData(plt.Integer(self.record.constructor), build_constr_params),
         )
 
@@ -311,7 +311,7 @@ class DictType(ClassType):
     def attribute(self, attr) -> plt.AST:
         if attr == "get":
             return plt.Lambda(
-                ["self", "key", "default", "_"],
+                ["_", "self", "key", "default"],
                 transform_ext_params_map(self.value_typ)(
                     plt.SndPair(
                         plt.FindList(
@@ -336,7 +336,7 @@ class DictType(ClassType):
             )
         if attr == "keys":
             return plt.Lambda(
-                ["self", "_"],
+                ["_", "self"],
                 plt.MapList(
                     plt.Var("self"),
                     plt.Lambda(
@@ -350,7 +350,7 @@ class DictType(ClassType):
             )
         if attr == "values":
             return plt.Lambda(
-                ["self", "_"],
+                ["_", "self"],
                 plt.MapList(
                     plt.Var("self"),
                     plt.Lambda(
@@ -418,7 +418,7 @@ class IntegerType(AtomicType):
 
     def constr(self) -> plt.AST:
         return plt.Lambda(
-            ["x", "_"],
+            ["_", "x"],
             plt.Let(
                 [
                     ("e", plt.EncodeUtf8(plt.Var("x"))),
@@ -585,7 +585,7 @@ class StringType(AtomicType):
     def constr(self) -> plt.AST:
         # constructs a string representation of an integer
         return plt.Lambda(
-            ["x", "_"],
+            ["_", "x"],
             plt.DecodeUtf8(
                 plt.Let(
                     [
@@ -678,7 +678,7 @@ class ByteStringType(AtomicType):
 
     def constr(self) -> plt.AST:
         return plt.Lambda(
-            ["xs", "_"],
+            ["_", "xs"],
             plt.RFoldList(
                 plt.Var("xs"),
                 plt.Lambda(["a", "x"], plt.ConsByteString(plt.Var("x"), plt.Var("a"))),
@@ -694,7 +694,7 @@ class ByteStringType(AtomicType):
     def attribute(self, attr) -> plt.AST:
         if attr == "decode":
             # No codec -> only the default (utf8) is allowed
-            return plt.Lambda(["x", "_"], plt.DecodeUtf8(plt.Var("x")))
+            return plt.Lambda(["_", "x"], plt.DecodeUtf8(plt.Var("x")))
         return super().attribute(attr)
 
     def cmp(self, op: cmpop, o: "Type") -> plt.AST:

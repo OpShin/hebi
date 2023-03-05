@@ -113,28 +113,6 @@ def wrap_validator_double_function(x: plt.AST, pass_through: int = 0):
     )
 
 
-def extend_statemonad(
-    names: typing.List[str],
-    values: typing.List[plt.AST],
-    old_statemonad: plt.FunctionalMap,
-):
-    """Ensures that the argument is fully evaluated before being passed into the monad (like in imperative languages)"""
-    assert len(names) == len(values), "Unequal amount of names and values passed in"
-    lam_names = [f"a{i}" for i, _ in enumerate(names)]
-    return plt.Apply(
-        plt.Lambda(
-            lam_names,
-            plt.FunctionalMapExtend(
-                old_statemonad, names, [plt.Var(n) for n in lam_names]
-            ),
-        ),
-        *values,
-    )
-
-
-INITIAL_STATE = plt.FunctionalMap()
-
-
 class UPLCCompiler(CompilingNodeTransformer):
     """
     Expects a TypedAST and returns UPLC/Pluto like code
@@ -309,7 +287,7 @@ class UPLCCompiler(CompilingNodeTransformer):
     def visit_AnnAssign(self, node: AnnAssign) -> typing.Callable[[plt.AST], plt.AST]:
         assert isinstance(
             node.target, Name
-        ), "Assignments to other things then names are not supported"
+        ), "Assignments to other things than names are not supported"
         assert isinstance(
             node.target.typ, InstanceType
         ), "Can only assign instances to instances"
@@ -395,7 +373,6 @@ class UPLCCompiler(CompilingNodeTransformer):
         return lambda x: x
 
     def visit_Subscript(self, node: TypedSubscript) -> plt.AST:
-        # TODO adjust
         assert isinstance(
             node.value.typ, InstanceType
         ), "Can only access elements of instances, not classes"
@@ -413,13 +390,10 @@ class UPLCCompiler(CompilingNodeTransformer):
             if index < 0:
                 index += len(node.value.typ.typ.typs)
             assert isinstance(node.ctx, Load), "Tuples are read-only"
-            return plt.Lambda(
-                [STATEMONAD],
-                plt.FunctionalTupleAccess(
-                    plt.Apply(self.visit(node.value), plt.Var(STATEMONAD)),
-                    index,
-                    len(node.value.typ.typ.typs),
-                ),
+            return plt.FunctionalTupleAccess(
+                self.visit(node.value),
+                index,
+                len(node.value.typ.typ.typs),
             )
         if isinstance(node.value.typ.typ, ListType):
             assert isinstance(
@@ -428,134 +402,109 @@ class UPLCCompiler(CompilingNodeTransformer):
             assert (
                 node.slice.value.typ == IntegerInstanceType
             ), "Only single element list index access supported"
-            return plt.Lambda(
-                [STATEMONAD],
-                plt.Let(
+            return plt.Let(
+                [
+                    ("l", self.visit(node.value)),
+                    (
+                        "raw_i",
+                        self.visit(node.slice.value),
+                    ),
+                    (
+                        "i",
+                        plt.Ite(
+                            plt.LessThanInteger(plt.Var("raw_i"), plt.Integer(0)),
+                            plt.AddInteger(
+                                plt.Var("raw_i"), plt.LengthList(plt.Var("l"))
+                            ),
+                            plt.Var("raw_i"),
+                        ),
+                    ),
+                ],
+                plt.IndexAccessList(plt.Var("l"), plt.Var("i")),
+            )
+        elif isinstance(node.value.typ.typ, ByteStringType):
+            if isinstance(node.slice, Index):
+                return plt.Let(
                     [
-                        ("l", plt.Apply(self.visit(node.value), plt.Var(STATEMONAD))),
+                        (
+                            "bs",
+                            self.visit(node.value),
+                        ),
+                        (
+                            "raw_ix",
+                            self.visit(node.slice.value),
+                        ),
+                        (
+                            "ix",
+                            plt.Ite(
+                                plt.LessThanInteger(plt.Var("raw_ix"), plt.Integer(0)),
+                                plt.AddInteger(
+                                    plt.Var("raw_ix"),
+                                    plt.LengthOfByteString(plt.Var("bs")),
+                                ),
+                                plt.Var("raw_ix"),
+                            ),
+                        ),
+                    ],
+                    plt.IndexByteString(plt.Var("bs"), plt.Var("ix")),
+                )
+            elif isinstance(node.slice, Slice):
+                return plt.Let(
+                    [
+                        (
+                            "bs",
+                            self.visit(node.value),
+                        ),
                         (
                             "raw_i",
-                            plt.Apply(
-                                self.visit(node.slice.value), plt.Var(STATEMONAD)
-                            ),
+                            self.visit(node.slice.lower),
                         ),
                         (
                             "i",
                             plt.Ite(
                                 plt.LessThanInteger(plt.Var("raw_i"), plt.Integer(0)),
                                 plt.AddInteger(
-                                    plt.Var("raw_i"), plt.LengthList(plt.Var("l"))
+                                    plt.Var("raw_i"),
+                                    plt.LengthOfByteString(plt.Var("bs")),
                                 ),
                                 plt.Var("raw_i"),
                             ),
                         ),
-                    ],
-                    plt.IndexAccessList(plt.Var("l"), plt.Var("i")),
-                ),
-            )
-        elif isinstance(node.value.typ.typ, ByteStringType):
-            if isinstance(node.slice, Index):
-                return plt.Lambda(
-                    [STATEMONAD],
-                    plt.Let(
-                        [
-                            (
-                                "bs",
-                                plt.Apply(self.visit(node.value), plt.Var(STATEMONAD)),
-                            ),
-                            (
-                                "raw_ix",
-                                plt.Apply(
-                                    self.visit(node.slice.value), plt.Var(STATEMONAD)
-                                ),
-                            ),
-                            (
-                                "ix",
-                                plt.Ite(
-                                    plt.LessThanInteger(
-                                        plt.Var("raw_ix"), plt.Integer(0)
-                                    ),
-                                    plt.AddInteger(
-                                        plt.Var("raw_ix"),
-                                        plt.LengthOfByteString(plt.Var("bs")),
-                                    ),
-                                    plt.Var("raw_ix"),
-                                ),
-                            ),
-                        ],
-                        plt.IndexByteString(plt.Var("bs"), plt.Var("ix")),
-                    ),
-                )
-            elif isinstance(node.slice, Slice):
-                return plt.Lambda(
-                    [STATEMONAD],
-                    plt.Let(
-                        [
-                            (
-                                "bs",
-                                plt.Apply(self.visit(node.value), plt.Var(STATEMONAD)),
-                            ),
-                            (
-                                "raw_i",
-                                plt.Apply(
-                                    self.visit(node.slice.lower), plt.Var(STATEMONAD)
-                                ),
-                            ),
-                            (
-                                "i",
-                                plt.Ite(
-                                    plt.LessThanInteger(
-                                        plt.Var("raw_i"), plt.Integer(0)
-                                    ),
-                                    plt.AddInteger(
-                                        plt.Var("raw_i"),
-                                        plt.LengthOfByteString(plt.Var("bs")),
-                                    ),
-                                    plt.Var("raw_i"),
-                                ),
-                            ),
-                            (
-                                "raw_j",
-                                plt.Apply(
-                                    self.visit(node.slice.upper), plt.Var(STATEMONAD)
-                                ),
-                            ),
-                            (
-                                "j",
-                                plt.Ite(
-                                    plt.LessThanInteger(
-                                        plt.Var("raw_j"), plt.Integer(0)
-                                    ),
-                                    plt.AddInteger(
-                                        plt.Var("raw_j"),
-                                        plt.LengthOfByteString(plt.Var("bs")),
-                                    ),
+                        (
+                            "raw_j",
+                            self.visit(node.slice.upper),
+                        ),
+                        (
+                            "j",
+                            plt.Ite(
+                                plt.LessThanInteger(plt.Var("raw_j"), plt.Integer(0)),
+                                plt.AddInteger(
                                     plt.Var("raw_j"),
+                                    plt.LengthOfByteString(plt.Var("bs")),
                                 ),
+                                plt.Var("raw_j"),
                             ),
-                            (
-                                "drop",
-                                plt.Ite(
-                                    plt.LessThanEqualsInteger(
-                                        plt.Var("i"), plt.Integer(0)
-                                    ),
-                                    plt.Integer(0),
-                                    plt.Var("i"),
-                                ),
+                        ),
+                        (
+                            "drop",
+                            plt.Ite(
+                                plt.LessThanEqualsInteger(plt.Var("i"), plt.Integer(0)),
+                                plt.Integer(0),
+                                plt.Var("i"),
                             ),
-                            (
-                                "take",
-                                plt.SubtractInteger(plt.Var("j"), plt.Var("drop")),
-                            ),
-                        ],
-                        plt.Ite(
-                            plt.LessThanEqualsInteger(plt.Var("j"), plt.Var("i")),
-                            plt.ByteString(b""),
-                            plt.SliceByteString(
-                                plt.Var("drop"),
-                                plt.Var("take"),
-                                plt.Var("bs"),
-                            ),
+                        ),
+                        (
+                            "take",
+                            plt.SubtractInteger(plt.Var("j"), plt.Var("drop")),
+                        ),
+                    ],
+                    plt.Ite(
+                        plt.LessThanEqualsInteger(plt.Var("j"), plt.Var("i")),
+                        plt.ByteString(b""),
+                        plt.SliceByteString(
+                            plt.Var("drop"),
+                            plt.Var("take"),
+                            plt.Var("bs"),
                         ),
                     ),
                 )
@@ -570,26 +519,23 @@ class UPLCCompiler(CompilingNodeTransformer):
         return lambda x: plt.Let([(node.name, node.class_typ.constr())], x)
 
     def visit_Attribute(self, node: TypedAttribute) -> plt.AST:
-        # TODO adjust
         assert isinstance(
             node.typ, InstanceType
         ), "Can only access attributes of instances"
         obj = self.visit(node.value)
         attr = node.value.typ.attribute(node.attr)
-        return plt.Lambda(
-            [STATEMONAD], plt.Apply(attr, plt.Apply(obj, plt.Var(STATEMONAD)))
-        )
+        return plt.Apply(attr, obj)
 
     def visit_Assert(self, node: TypedAssert) -> typing.Callable[[plt.AST], plt.AST]:
         return lambda x: plt.Ite(
             self.visit(node.test),
+            x,
             plt.Apply(
                 plt.Error(),
                 plt.Trace(self.visit(node.msg), plt.Unit())
                 if node.msg is not None
                 else plt.Unit(),
             ),
-            x,
         )
 
     def visit_RawPlutoExpr(self, node: RawPlutoExpr) -> plt.AST:

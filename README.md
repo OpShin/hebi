@@ -1,7 +1,7 @@
 
 <div align="center">
 
-<img  src="hebi.png" width="240" />
+<img  src="https://raw.githubusercontent.com/ImperatorLang/hebi/master/hebi.png" width="240" />
 <h1 style="text-align: center;">hebi</h1></br>
 
 

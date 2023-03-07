@@ -8,7 +8,7 @@ try:
 except ImportError as e:
     warnings.warn(ImportWarning(e))
 
-VERSION = (0, 1, 1, 0, 9, 4)
+VERSION = (0, 1, 1, 0, 9, 8)
 
 __version__ = ".".join([str(i) for i in VERSION])
 __author__ = "nielstron"

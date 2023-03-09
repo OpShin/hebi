@@ -93,9 +93,13 @@ def main():
         source_code = f.read()
 
     if command == Command.eval:
-        with open("__tmp_eopsin.py", "w") as fp:
-            fp.write(source_code)
-        sc = importlib.import_module("__tmp_eopsin")
+        if args.input_file == "-":
+            with open("__tmp_eopsin.py", "w") as fp:
+                fp.write(source_code)
+            input_file = "__tmp_eopsin.py"
+        sys.path.append(str(pathlib.Path(input_file).parent.absolute()))
+        sc = importlib.import_module(pathlib.Path(input_file).stem)
+        sys.path.pop()
         print("Starting execution")
         print("------------------")
         try:
@@ -110,14 +114,16 @@ def main():
         print("------------------")
         print(ret)
 
-    source_ast = compiler.parse(source_code)
+    source_ast = compiler.parse(source_code, filename=input_file)
 
     if command == Command.parse:
         print("Parsed successfully.")
         return
 
     try:
-        code = compiler.compile(source_ast, force_three_params=args.force_three_params)
+        code = compiler.compile(
+            source_ast, filename=input_file, force_three_params=args.force_three_params
+        )
     except CompilerError as c:
         # Generate nice error message from compiler error
         if not isinstance(c.node, ast.Module):
@@ -134,7 +140,7 @@ def main():
         raise SyntaxError(
             f"""\
 {overwrite_syntaxerror}{c.orig_err.__class__.__name__}: {c.orig_err}
-Note that eopsin errors may be overly restrictive as they aim to prevent code with unintended consequences.
+Note that hebi errors may be overly restrictive as they aim to prevent code with unintended consequences.
 """,
             (
                 args.input_file,
@@ -168,10 +174,10 @@ Note that eopsin errors may be overly restrictive as they aim to prevent code wi
                     "Please supply an output directory if no input file is specified."
                 )
                 exit(-1)
-            target_dir = pathlib.Path(pathlib.Path(input_file).stem)
+            target_dir = pathlib.Path("build") / pathlib.Path(input_file).stem
         else:
             target_dir = pathlib.Path(args.output_directory)
-        target_dir.mkdir(exist_ok=True)
+        target_dir.mkdir(exist_ok=True, parents=True)
         uplc_dump = code.dumps()
         cbor_hex = pyaiken.uplc.flat(uplc_dump)
         # create cbor file for use with pycardano/lucid

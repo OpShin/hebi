@@ -1,15 +1,15 @@
 
 <div align="center">
 
-<img  src="https://raw.githubusercontent.com/ImperatorLang/hebi/master/hebi.png" width="240" />
+<img  src="https://raw.githubusercontent.com/OpShin/hebi/master/hebi.png" width="240" />
 <h1 style="text-align: center;">hebi</h1></br>
 
 
-[![Build Status](https://app.travis-ci.com/ImperatorLang/hebi.svg?branch=master)](https://app.travis-ci.com/ImperatorLang/hebi)
+[![Build Status](https://app.travis-ci.com/OpShin/hebi.svg?branch=master)](https://app.travis-ci.com/OpShin/hebi)
 [![PyPI version](https://badge.fury.io/py/hebi.svg)](https://pypi.org/project/hebi/)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/hebi.svg)
 [![PyPI - Status](https://img.shields.io/pypi/status/hebi.svg)](https://pypi.org/project/hebi/)
-[![Coverage Status](https://coveralls.io/repos/github/ImperatorLang/hebi/badge.svg?branch=master)](https://coveralls.io/github/ImperatorLang/hebi?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/OpShin/hebi/badge.svg?branch=master)](https://coveralls.io/github/OpShin/hebi?branch=master)
 
 </div>
 
@@ -42,7 +42,7 @@ Then, after everything works to your pleasing, try to port to hebi and enjoy the
 Check out this example repository for a quick start in setting up a development environment
 and compiling some sample contracts yours:
 
-https://github.com/ImperatorLang/eopsin-example
+https://github.com/OpShin/eopsin-example
 
 You can replace the contracts in your local copy of the repository with code from the
 `examples` section here to start exploring different contracts.
@@ -53,7 +53,10 @@ The eopsin repository contains a discussions page.
 Feel free to open up a new discussion with questions regarding development using hebi and using certain features.
 Others may be able to help you and will also benefit from the previously shared questions.
 
-Check out the community [here](https://github.com/ImperatorLang/eopsin/discussions)
+Check out the community [here](https://github.com/OpShin/eopsin/discussions)
+
+You can also chat with other developers [in the welcoming discord
+community](https://discord.gg/2ETSZnQQH9) of OpShin
 
 #### Installation
 
@@ -71,8 +74,8 @@ A short non-complete introduction in starting to write smart contracts follows.
 2. Make sure you understand python. Eopsin works like python and uses python. There are tons of tutorials for python, choose what suits you best.
 3. Make sure your contract is valid python and the types check out. Write simple contracts first and run them using `hebi eval` to get a feeling for how they work.
 4. Make sure your contract is valid hebi code. Run `hebi compile` and look at the compiler erros for guidance along what works and doesn't work and why.
-5. Dig into the [`examples`](https://github.com/ImperatorLang/hebi/tree/master/examples) to understand common patterns. Check out the [`prelude`](https://imperatorlang.github.io/hebi/hebi/prelude.html) for understanding how the Script Context is structured and how complex datums are defined.
-6. Check out the [sample repository](https://github.com/ImperatorLang/eopsin-example) to find a sample setup for developing your own contract. The example is based on eopsin but works for hebi too.
+5. Dig into the [`examples`](https://github.com/OpShin/hebi/tree/master/examples) to understand common patterns. Check out the [`prelude`](https://imperatorlang.github.io/hebi/hebi/prelude.html) for understanding how the Script Context is structured and how complex datums are defined.
+6. Check out the [sample repository](https://github.com/OpShin/eopsin-example) to find a sample setup for developing your own contract.
 
 
 In summary, a smart contract in hebi is defined by the function `validator` in your contract file.
@@ -181,10 +184,14 @@ python3 -m hebi compile_pluto examples/smart_contracts/assert_sum.py
 
 ### Sponsoring
 
-You can sponsor the development of hebi. Just drop me a message on social media and let me know what it is for.
-Donation in ADA can be submitted to `$imperatorlang` or `addr1qyz3vgd5xxevjy2rvqevz9n7n7dney8n6hqggp23479fm6vwpj9clsvsf85cd4xc59zjztr5zwpummwckmzr2myjwjns74lhmr`.
+You can sponsor the development of hebi through GitHub or [Teiki](https://alpha.teiki.network/projects/opshin) or just by sending ADA. Drop me a message on social media and let me know what it is for.
+
+- **[Teiki](https://alpha.teiki.network/projects/opshin)** Stake your ada to support OpShin at [Teiki](https://alpha.teiki.network/projects/opshin)
+- **GitHub** Sponsor the developers of this project through the button "Sponsor" next to them
+- **ADA** Donation in ADA can be submitted to `$opshin` or `addr1qyz3vgd5xxevjy2rvqevz9n7n7dney8n6hqggp23479fm6vwpj9clsvsf85cd4xc59zjztr5zwpummwckmzr2myjwjns74lhmr`.
 
 ### Supporters
 
+<a href="https://github.com/inversion-dev"><img src="https://avatars.githubusercontent.com/u/127298233?s=200&v=4" width="50"></a>
 <a href="https://github.com/MuesliSwapTeam/"><img  src="https://avatars.githubusercontent.com/u/91151317?v=4" width="50" /></a>
 <a href="https://github.com/AadaFinance/"><img  src="https://avatars.githubusercontent.com/u/89693711?v=4" width="50" /></a>

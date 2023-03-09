@@ -13,6 +13,11 @@
 
 </div>
 
+> Note this is the sister project of [eopsin](https://github.com/ImperatorLang/eopsin).
+It uses an even more restricted subset of python (for example no while loops).
+The benefit is that the resulting code is greatly reduced in size and cpu/memory consumption.
+
+
 This is an implementation of smart contracts for Cardano which are written in a very strict subset of valid Python.
 The general philosophy of this project is to write a compiler that 
 ensure the following:
@@ -26,10 +31,6 @@ If the program compiles then:
 - Intuitive. Just like Python.
 - Flexible. Imperative, functional, the way you want it.
 - Efficient & Secure. Static type inference ensures strict typing and optimized code
-
-Note this is the sister project of [eopsin](https://github.com/ImperatorLang/eopsin).
-It uses an even more restricted subset of python (for example no if & while).
-The benefit is that the resulting code is greatly reduced in size and cpu/memory consumption.
 
 Eopsin is more comfortable to use than hebi.
 If you want to start building, write your contract in eopsin first.

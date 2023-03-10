@@ -23,9 +23,6 @@ from .typed_ast import transform_ext_params_map, transform_output_map, RawPlutoE
 
 _LOGGER = logging.getLogger(__name__)
 
-STATEMONAD = "s"
-
-
 BinOpMap = {
     Add: {
         IntegerInstanceType: {

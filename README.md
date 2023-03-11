@@ -29,7 +29,7 @@ If the program compiles then:
 ### Why hebi?
 - 100% valid Python. Leverage the existing tool stack for Python, syntax highlighting, linting, debugging, unit-testing, [property-based testing](https://hypothesis.readthedocs.io/), [verification](https://github.com/marcoeilers/nagini)
 - Intuitive. Just like Python.
-- Flexible. Imperative, functional, the way you want it.
+- Functional. Forces you to write elegant, functional code in Python.
 - Efficient & Secure. Static type inference ensures strict typing and optimized code
 
 Eopsin is more comfortable to use than hebi.

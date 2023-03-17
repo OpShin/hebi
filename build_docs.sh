@@ -1,4 +1,6 @@
 #! /bin/bash
-pip install handsdown
-handsdown --external `git config --get remote.origin.url` -n hebi --branch master --create-configs --exclude venv
+set -e
 
+pip install pdoc3
+rm -r docs/hebi
+pdoc --html hebi -o docs

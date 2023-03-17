@@ -7,15 +7,15 @@ arch:
 - arm64
 jobs:
   fast_finish: true
+
+before_install:
+- pip install poetry
 install:
-- if [[ $TRAVIS_PYTHON_VERSION == 3.7 ]]; then pip install -U importlib_metadata;
-  fi
-- pip install coverage coveralls
-- pip install black==22.12.0
-- pip install -e .
+- poetry install
 script:
 - black --check .
-- coverage run --source=hebi setup.py test
+- coverage run --source=hebi -m pytest hebi/tests
+# the samples from the README file
 - >
   coverage run -a --source=hebi -m hebi eval examples/smart_contracts/assert_sum.py "{\"int\": 4}" "{\"int\": 38}" "{\"constructor\": 6, \"fields\": []}"
 - >
@@ -29,13 +29,3 @@ script:
 after_success:
 - coverage report
 - coveralls
-deploy:
-  provider: pypi
-  on:
-    branch: master
-    python: '3.8'
-  distributions: sdist bdist_wheel
-  skip_existing: true
-  username: __token__
-  password:
-    secure: M2/LS3oSobTfz6UV/4GLkE3PrSYthuXvi2qvYBieLMmbzw8y5hnItdhRs3KWL3jRZNT0Fg5QUhC4QuLaNXFxHu9TAKAlh2uQkHCZiuR71OnEm15g6KC8FBWh3SXUgvo1EjOLJbWZHoH/iKDU0b++w8LpY/gJAQyNwFUhVFVhiDiUebPG0i7olsRbyHaA9b5MivrzZIxh+gDORWIXEC11sRmRuVz+CbJuwKL0drz9T+qwPnk6aJSNbLTgXTOO5Arnu7YSx6WAXTmfHxKzLYwlNGN2GqiRN0jUdUO9iDxODNDpfMfGN1ippu+04ZxUsQa1HMAm9mo7Q8NOKe7Q8He3DxjSYpyZCPgOiL+z/Ej7E5cb5N1LOaHI3Y9pxEeDPjjDVrJ8D0BQZvnWwYgFCQnVu3OAi+6BYRq2hkVBosgfP+ibACaKJdIfAl+vN2opRo/DwuvOyg7omCCy9ZeVIGtfzd207GVALARKZuXqJLslEheIPDXCOzEzBoVAonf9LDVnj7GUIZuoUHhm+N3FPUQzBkr4WtRIbjjvk0agqHBaUiZNI/VVQ8KsjcPxeGNlrD0pUAAr7V6IhBo2mfbEPPAkcW4alcBaRH2wpsxYwpJ28+8ilzzqFFuzmmzt7jzfAd7g1KjHKTpmIabc+h7FNFcWZOoSOw88EuwtpCRNBO01yJI=

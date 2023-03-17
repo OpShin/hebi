@@ -1,14 +1,13 @@
-import frozendict
-import hypothesis
 import unittest
 
-from uplc import ast as uplc, eval as uplc_eval
-from hypothesis import example, given
+import frozendict
+from hypothesis import given
 from hypothesis import strategies as st
 from parameterized import parameterized
+from uplc import ast as uplc, eval as uplc_eval
 
-from .. import compiler, prelude, type_inference
 from ..util import CompilerError
+from .. import compiler, prelude
 
 
 def fib(n):
@@ -668,3 +667,37 @@ def validator(x: int) -> int:
             self.fail("Compilation passed")
         except CompilerError:
             pass
+
+    def test_typecast_anything_int(self):
+        source_code = """
+def validator(x: Anything) -> int:
+    b: int = x
+    return b
+"""
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast).compile()
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusInteger(0))).value
+        self.assertEqual(res, 0)
+
+    @unittest.expectedFailure
+    def test_typecast_int_anything(self):
+        # this should not compile, we can not upcast with this notation
+        # up to discussion whether this should be allowed, but i.g. it should never be necessary or useful
+        source_code = """
+def validator(x: int) -> Anything:
+    b: Anything = x
+    return x
+"""
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast)
+
+    def test_typecast_int_int(self):
+        source_code = """
+def validator(x: int) -> int:
+    b: int = x
+    return b
+"""
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast).compile()
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusInteger(0))).value
+        self.assertEqual(res, 0)

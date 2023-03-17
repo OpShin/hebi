@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+.. include:: ../README.md
+"""
 
 import warnings
 
@@ -8,9 +11,7 @@ try:
 except ImportError as e:
     warnings.warn(ImportWarning(e))
 
-VERSION = (0, 1, 1, 0, 9, 9)
-
-__version__ = ".".join([str(i) for i in VERSION])
+__version__ = "0.1.1.0.9.12"
 __author__ = "nielstron"
 __author_email__ = "n.muendler@web.de"
 __copyright__ = "Copyright (C) 2023 nielstron"

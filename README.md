@@ -5,19 +5,22 @@
 <h1 style="text-align: center;">hebi</h1></br>
 
 
-[![Build Status](https://app.travis-ci.com/OpShin/hebi.svg?branch=master)](https://app.travis-ci.com/OpShin/hebi)
-[![PyPI version](https://badge.fury.io/py/hebi.svg)](https://pypi.org/project/hebi/)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/hebi.svg)
-[![PyPI - Status](https://img.shields.io/pypi/status/hebi.svg)](https://pypi.org/project/hebi/)
-[![Coverage Status](https://coveralls.io/repos/github/OpShin/hebi/badge.svg?branch=master)](https://coveralls.io/github/OpShin/hebi?branch=master)
+<a href="https://app.travis-ci.com/OpShin/hebi"><img alt="Build Status" src="https://app.travis-ci.com/OpShin/hebi.svg?branch=master"/></a>
+<a href="https://pypi.org/project/hebi/"><img alt="PyPI version" src="https://badge.fury.io/py/hebi.svg"/></a>
+<img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/hebi.svg" />
+<a href="https://pypi.org/project/hebi/"><img alt="PyPI - Status" src="https://img.shields.io/pypi/status/hebi.svg" /></a>
+<a href="https://coveralls.io/github/OpShin/hebi?branch=master"><img alt="Coverage Status" src="https://coveralls.io/repos/github/OpShin/hebi/badge.svg?branch=master" /></a>
 
 </div>
 
-This is an implementation of smart contracts for Cardano which are written in a very strict subset of valid Python.
+> You are building what you want. Why not also build **how** you want?
+
+This is an implementation of smart contracts for Cardano which are written in a strict subset of valid Python.
 The general philosophy of this project is to write a compiler that 
 ensure the following:
 
 If the program compiles then:
+
 1. it is a valid Python program
 2. the output running it with python is the same as running it on-chain.
 
@@ -37,12 +40,17 @@ Then, after everything works to your pleasing, try to port to hebi and enjoy the
 
 ### Getting Started
 
+#### Eopsin Pioneer Program
+
+Check out the [eopsin-pioneer-program](
+https://github.com/OpShin/eopsin-pioneer-program) for a host of educational example contracts, test cases and off-chain code.
+
 #### Example repository
 
-Check out this example repository for a quick start in setting up a development environment
-and compiling some sample contracts yours:
+Check out the [eopsin-example](
+https://github.com/OpShin/eopsin-example) repository for a quick start in setting up a development environment
+and compiling some sample contracts yourself.
 
-https://github.com/OpShin/eopsin-example
 
 You can replace the contracts in your local copy of the repository with code from the
 `examples` section here to start exploring different contracts.
@@ -74,7 +82,7 @@ A short non-complete introduction in starting to write smart contracts follows.
 2. Make sure you understand python. Eopsin works like python and uses python. There are tons of tutorials for python, choose what suits you best.
 3. Make sure your contract is valid python and the types check out. Write simple contracts first and run them using `hebi eval` to get a feeling for how they work.
 4. Make sure your contract is valid hebi code. Run `hebi compile` and look at the compiler erros for guidance along what works and doesn't work and why.
-5. Dig into the [`examples`](https://github.com/OpShin/hebi/tree/master/examples) to understand common patterns. Check out the [`prelude`](https://imperatorlang.github.io/hebi/hebi/prelude.html) for understanding how the Script Context is structured and how complex datums are defined.
+5. Dig into the [`examples`](https://github.com/OpShin/hebi/tree/master/examples) to understand common patterns. Check out the [`prelude`](https://opshin.github.io/hebi/prelude.html) for understanding how the Script Context is structured and how complex datums are defined.
 6. Check out the [sample repository](https://github.com/OpShin/eopsin-example) to find a sample setup for developing your own contract.
 
 
@@ -109,8 +117,14 @@ def validator(datum: CancelDatum, redeemer: None, context: ScriptContext) -> Non
 ```
 
 All contracts written in hebi are 100% valid python.
-Minting policies follow the same structure, but expect a value of type `None` as first argument.
-See the `examples` directory for more.
+Minting policies expect only a redeemer and script context as argument.
+Check out the [Architecture guide](https://github.com/OpShin/hebi/blob/master/ARCHITECTURE.md#minting-policy---spending-validator-double-function)
+for details on how to write double functioning contracts.
+The [`examples`](https://github.com/OpShin/hebi/blob/master/examples) folder contains more examples.
+Also check out the [eopsin-pioneer-program](
+https://github.com/OpShin/eopsin-pioneer-program)
+ and [eopsin-example](
+https://github.com/OpShin/eopsin-example) repo.
 
 ### Compiling
 

@@ -289,11 +289,15 @@ class UPLCCompiler(CompilingNodeTransformer):
             node.target.typ, InstanceType
         ), "Can only assign instances to instances"
         compiled_e = self.visit(node.value)
-        # we need to map this as it will originate from PlutusData
         # (\{STATEMONAD} -> (\x -> if (x ==b {self.visit(node.targets[0])}) then ({compiled_e} {STATEMONAD}) else ({STATEMONAD} x)))
-        return lambda x: plt.Let(
-            [(node.target.id, transform_ext_params_map(node.target.typ)(compiled_e))], x
-        )
+        val = compiled_e
+        if isinstance(node.value.typ, InstanceType) and isinstance(
+            node.value.typ.typ, AnyType
+        ):
+            # we need to map this as it will originate from PlutusData
+            # AnyType is the only type other than the builtin itself that can be cast to builtin values
+            val = transform_ext_params_map(node.target.typ)(val)
+        return lambda x: plt.Let([(node.target.id, val)], x)
 
     def visit_Name(self, node: TypedName) -> plt.AST:
         # depending on load or store context, return the value of the variable or its name

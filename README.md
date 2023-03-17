@@ -15,7 +15,8 @@
 
 > You are building what you want. Why not also build **how** you want?
 
-This is an implementation of smart contracts for Cardano which are written in a strict subset of valid Python.
+
+This is an implementation of smart contracts for Cardano which are written in a very strict subset of valid Python.
 The general philosophy of this project is to write a compiler that 
 ensure the following:
 
@@ -24,15 +25,17 @@ If the program compiles then:
 1. it is a valid Python program
 2. the output running it with python is the same as running it on-chain.
 
+
+> Note this is the sister project of [eopsin](https://github.com/ImperatorLang/eopsin).
+It uses an even more restricted subset of python (for example no while loops).
+The benefit is that the resulting code is greatly reduced in size and cpu/memory consumption.
+
+
 ### Why hebi?
 - 100% valid Python. Leverage the existing tool stack for Python, syntax highlighting, linting, debugging, unit-testing, [property-based testing](https://hypothesis.readthedocs.io/), [verification](https://github.com/marcoeilers/nagini)
 - Intuitive. Just like Python.
-- Flexible. Imperative, functional, the way you want it.
+- Functional. Forces you to write elegant, functional code in Python.
 - Efficient & Secure. Static type inference ensures strict typing and optimized code
-
-Note this is the sister project of [eopsin](https://github.com/ImperatorLang/eopsin).
-It uses an even more restricted subset of python (for example no if & while).
-The benefit is that the resulting code is greatly reduced in size and cpu/memory consumption.
 
 Eopsin is more comfortable to use than hebi.
 If you want to start building, write your contract in eopsin first.

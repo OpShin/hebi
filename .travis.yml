@@ -1,6 +1,9 @@
 language: python
 python:
 - '3.8'
+- '3.9'
+- '3.10'
+- '3.11'
 dist: bionic
 os: linux
 arch:
@@ -26,6 +29,7 @@ script:
   coverage run -a --source=hebi -m hebi compile_pluto examples/smart_contracts/assert_sum.py
 - >
   coverage run -a --source=hebi -m hebi build examples/smart_contracts/assert_sum.py
+
 after_success:
 - coverage report
 - coveralls

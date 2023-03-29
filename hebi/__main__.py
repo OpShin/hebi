@@ -7,13 +7,11 @@ import sys
 import typing
 import ast
 
-import cbor2
-import pyaiken
 import pycardano
 import uplc
 import uplc.ast
 
-from hebi import __version__, compiler
+from hebi import compiler, builder
 from hebi.util import CompilerError, data_from_json
 
 
@@ -94,9 +92,9 @@ def main():
 
     if command == Command.eval:
         if args.input_file == "-":
-            with open("__tmp_eopsin.py", "w") as fp:
+            with open("__tmp_opshin.py", "w") as fp:
                 fp.write(source_code)
-            input_file = "__tmp_eopsin.py"
+            input_file = "__tmp_opshin.py"
         sys.path.append(str(pathlib.Path(input_file).parent.absolute()))
         sc = importlib.import_module(pathlib.Path(input_file).stem)
         sys.path.pop()
@@ -140,7 +138,11 @@ def main():
         raise SyntaxError(
             f"""\
 {overwrite_syntaxerror}{c.orig_err.__class__.__name__}: {c.orig_err}
+<<<<<<<< HEAD:hebi/__main__.py
 Note that hebi errors may be overly restrictive as they aim to prevent code with unintended consequences.
+========
+Note that opshin errors may be overly restrictive as they aim to prevent code with unintended consequences.
+>>>>>>>> 0.11.0:opshin/__main__.py
 """,
             (
                 args.input_file,
@@ -161,7 +163,7 @@ Note that hebi errors may be overly restrictive as they aim to prevent code with
     # UPLC lambdas may only take one argument at a time, so we evaluate by repeatedly applying
     for d in map(data_from_json, map(json.loads, args.args)):
         code = uplc.ast.Apply(code, d)
-    code = uplc.ast.Program("1.0.0", code)
+    code = uplc.ast.Program((1, 0, 0), code)
 
     if command == Command.compile:
         print(code.dumps())
@@ -178,38 +180,17 @@ Note that hebi errors may be overly restrictive as they aim to prevent code with
         else:
             target_dir = pathlib.Path(args.output_directory)
         target_dir.mkdir(exist_ok=True, parents=True)
-        uplc_dump = code.dumps()
-        cbor_hex = pyaiken.uplc.flat(uplc_dump)
-        # create cbor file for use with pycardano/lucid
+        artifacts = builder._build(code)
         with (target_dir / "script.cbor").open("w") as fp:
-            fp.write(cbor_hex)
-        cbor = bytes.fromhex(cbor_hex)
-        # double wrap
-        cbor_wrapped = cbor2.dumps(cbor)
-        cbor_wrapped_hex = cbor_wrapped.hex()
-        # create plutus file
-        d = {
-            "type": "PlutusScriptV2",
-            "description": f"Eopsin {__version__} Smart Contract",
-            "cborHex": cbor_wrapped_hex,
-        }
+            fp.write(artifacts.cbor_hex)
         with (target_dir / "script.plutus").open("w") as fp:
-            json.dump(d, fp)
-        script_hash = pycardano.plutus_script_hash(pycardano.PlutusV2Script(cbor))
-        # generate policy ids
+            fp.write(artifacts.plutus_json)
         with (target_dir / "script.policy_id").open("w") as fp:
-            fp.write(script_hash.to_primitive().hex())
-        addr_mainnet = pycardano.Address(
-            script_hash, network=pycardano.Network.MAINNET
-        ).encode()
-        # generate addresses
+            fp.write(artifacts.policy_id)
         with (target_dir / "mainnet.addr").open("w") as fp:
-            fp.write(addr_mainnet)
-        addr_testnet = pycardano.Address(
-            script_hash, network=pycardano.Network.TESTNET
-        ).encode()
+            fp.write(artifacts.mainnet_addr)
         with (target_dir / "testnet.addr").open("w") as fp:
-            fp.write(addr_testnet)
+            fp.write(artifacts.testnet_addr)
 
         print(f"Wrote script artifacts to {target_dir}/")
         return

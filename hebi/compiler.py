@@ -11,8 +11,10 @@ from .rewrite.rewrite_import_typing import RewriteImportTyping
 from .rewrite.rewrite_inject_builtins import RewriteInjectBuiltins
 from .rewrite.rewrite_inject_builtin_constr import RewriteInjectBuiltinsConstr
 from .rewrite.rewrite_remove_type_stuff import RewriteRemoveTypeStuff
+from .rewrite.rewrite_subscript38 import RewriteSubscript38
 from .rewrite.rewrite_tuple_assign import RewriteTupleAssign
 from .rewrite.rewrite_duplicate_assignment import RewriteDuplicateAssignment
+from .rewrite.rewrite_zero_ary import RewriteZeroAry
 from .optimize.optimize_remove_pass import OptimizeRemovePass
 from .optimize.optimize_remove_deadvars import OptimizeRemoveDeadvars
 from .optimize.optimize_varlen import OptimizeVarlen
@@ -256,7 +258,7 @@ class UPLCCompiler(CompilingNodeTransformer):
             raise RuntimeError(
                 "The contract can not always detect if it was passed three or two parameters on-chain."
             )
-        cp = plt.Program("1.0.0", validator)
+        cp = plt.Program((1, 0, 0), validator)
         return cp
 
     def visit_Constant(self, node: TypedConstant) -> plt.AST:
@@ -379,15 +381,12 @@ class UPLCCompiler(CompilingNodeTransformer):
         ), "Can only access elements of instances, not classes"
         if isinstance(node.value.typ.typ, TupleType):
             assert isinstance(
-                node.slice, Index
-            ), "Only single index slices for tuples are currently supported"
-            assert isinstance(
-                node.slice.value, Constant
+                node.slice, Constant
             ), "Only constant index access for tuples is supported"
             assert isinstance(
-                node.slice.value.value, int
+                node.slice.value, int
             ), "Only constant index integer access for tuples is supported"
-            index = node.slice.value.value
+            index = node.slice.value
             if index < 0:
                 index += len(node.value.typ.typ.typs)
             assert isinstance(node.ctx, Load), "Tuples are read-only"
@@ -397,18 +396,15 @@ class UPLCCompiler(CompilingNodeTransformer):
                 len(node.value.typ.typ.typs),
             )
         if isinstance(node.value.typ.typ, ListType):
-            assert isinstance(
-                node.slice, Index
-            ), "Only single index slices for lists are currently supported"
             assert (
-                node.slice.value.typ == IntegerInstanceType
+                node.slice.typ == IntegerInstanceType
             ), "Only single element list index access supported"
             return plt.Let(
                 [
                     ("l", self.visit(node.value)),
                     (
                         "raw_i",
-                        self.visit(node.slice.value),
+                        self.visit(node.slice),
                     ),
                     (
                         "i",
@@ -424,7 +420,7 @@ class UPLCCompiler(CompilingNodeTransformer):
                 plt.IndexAccessList(plt.Var("l"), plt.Var("i")),
             )
         elif isinstance(node.value.typ.typ, ByteStringType):
-            if isinstance(node.slice, Index):
+            if not isinstance(node.slice, Slice):
                 return plt.Let(
                     [
                         (
@@ -433,7 +429,7 @@ class UPLCCompiler(CompilingNodeTransformer):
                         ),
                         (
                             "raw_ix",
-                            self.visit(node.slice.value),
+                            self.visit(node.slice),
                         ),
                         (
                             "ix",
@@ -452,10 +448,7 @@ class UPLCCompiler(CompilingNodeTransformer):
             elif isinstance(node.slice, Slice):
                 return plt.Let(
                     [
-                        (
-                            "bs",
-                            self.visit(node.value),
-                        ),
+                        ("bs", self.visit(node.value)),
                         (
                             "raw_i",
                             self.visit(node.slice.lower),
@@ -620,6 +613,7 @@ def compile(prog: AST, filename=None, force_three_params=False):
         # Important to call this one first - it imports all further files
         RewriteImport(filename=filename),
         # Rewrites that simplify the python code
+        RewriteSubscript38(),
         RewriteTupleAssign(),
         RewriteImportPlutusData(),
         RewriteImportHashlib(),
@@ -631,6 +625,7 @@ def compile(prog: AST, filename=None, force_three_params=False):
         # The type inference needs to be run after complex python operations were rewritten
         AggressiveTypeInferencer(),
         # Rewrites that circumvent the type inference or use its results
+        RewriteZeroAry(),
         RewriteInjectBuiltinsConstr(),
         RewriteRemoveTypeStuff(),
     ]

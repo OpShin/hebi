@@ -43,15 +43,15 @@ Then, after everything works to your pleasing, try to port to hebi and enjoy the
 
 ### Getting Started
 
-#### Eopsin Pioneer Program
+#### OpShin Pioneer Program
 
-Check out the [eopsin-pioneer-program](
-https://github.com/OpShin/eopsin-pioneer-program) for a host of educational example contracts, test cases and off-chain code.
+Check out the [opshin-pioneer-program](
+https://github.com/OpShin/opshin-pioneer-program) for a host of educational example contracts, test cases and off-chain code.
 
 #### Example repository
 
-Check out the [eopsin-example](
-https://github.com/OpShin/eopsin-example) repository for a quick start in setting up a development environment
+Check out the [opshin-starter-kit](
+https://github.com/OpShin/opshin-starter-kit) repository for a quick start in setting up a development environment
 and compiling some sample contracts yourself.
 
 
@@ -64,17 +64,17 @@ The eopsin repository contains a discussions page.
 Feel free to open up a new discussion with questions regarding development using hebi and using certain features.
 Others may be able to help you and will also benefit from the previously shared questions.
 
-Check out the community [here](https://github.com/OpShin/eopsin/discussions)
+Check out the community [here](https://github.com/OpShin/opshin/discussions)
 
 You can also chat with other developers [in the welcoming discord
-community](https://discord.gg/2ETSZnQQH9) of OpShin
+community](https://discord.gg/umR3A2g4uw) of OpShin
 
 #### Installation
 
-Install Python 3.8. Then run
+Install Python 3.8, 3.9 or 3.10. Then run
 
 ```bash
-python3.8 -m pip install hebi
+python3 -m pip install hebi
 ```
 
 #### Writing a Smart Contract
@@ -82,7 +82,7 @@ python3.8 -m pip install hebi
 A short non-complete introduction in starting to write smart contracts follows.
 
 1. Make sure you understand EUTxOs, Addresses, Validators etc on Cardano. [There is a wonderful crashcourse by @KtorZ](https://aiken-lang.org/fundamentals/eutxo). The contract will work on these concepts
-2. Make sure you understand python. Eopsin works like python and uses python. There are tons of tutorials for python, choose what suits you best.
+2. Make sure you understand python. hebi works like python and uses python. There are tons of tutorials for python, choose what suits you best.
 3. Make sure your contract is valid python and the types check out. Write simple contracts first and run them using `hebi eval` to get a feeling for how they work.
 4. Make sure your contract is valid hebi code. Run `hebi compile` and look at the compiler erros for guidance along what works and doesn't work and why.
 5. Dig into the [`examples`](https://github.com/OpShin/hebi/tree/master/examples) to understand common patterns. Check out the [`prelude`](https://opshin.github.io/hebi/prelude.html) for understanding how the Script Context is structured and how complex datums are defined.
@@ -106,7 +106,6 @@ If you don't understand what a pubkeyhash is and how this validates anything, ch
 Also see the [tutorial by `pycardano`](https://pycardano.readthedocs.io/en/latest/guides/plutus.html) for explanations on what each of the parameters to the validator means
 and how to build transactions with the contract.
 
-
 ```python3
 from hebi.prelude import *
 
@@ -124,10 +123,10 @@ Minting policies expect only a redeemer and script context as argument.
 Check out the [Architecture guide](https://github.com/OpShin/hebi/blob/master/ARCHITECTURE.md#minting-policy---spending-validator-double-function)
 for details on how to write double functioning contracts.
 The [`examples`](https://github.com/OpShin/hebi/blob/master/examples) folder contains more examples.
-Also check out the [eopsin-pioneer-program](
-https://github.com/OpShin/eopsin-pioneer-program)
- and [eopsin-example](
-https://github.com/OpShin/eopsin-example) repo.
+Also check out the [opshin-pioneer-program](
+https://github.com/OpShin/opshin-pioneer-program)
+and [opshin-starter-kit](
+https://github.com/OpShin/opshin-starter-kit) repo.
 
 ### Compiling
 
@@ -152,8 +151,7 @@ The deploy process generates all artifacts required for usage with common librar
 hebi build examples/smart_contracts/assert_sum.py
 ```
 
-See the [tutorial by `pycardano`](https://pycardano.readthedocs.io/en/latest/guides/plutus.html) for explanations how to build transactions with `eopsin` contracts.
-Contracts in hebi are invoked the same, so you can just follow the tutorial there.
+See the [tutorial by `pycardano`](https://pycardano.readthedocs.io/en/latest/guides/plutus.html) for explanations how to build transactions with `opshin` contracts.
 
 ### The small print
 
@@ -183,6 +181,7 @@ that a recent eopsin release is integrated that contains a security patch.
 ### Architecture
 
 This program consists of a few independent components:
+
 1. An aggressive static type inferencer
 2. Rewriting tools to simplify complex python expressions
 3. A compiler from a subset of python into UPLC
@@ -212,3 +211,10 @@ You can sponsor the development of hebi through GitHub or [Teiki](https://alpha.
 <a href="https://github.com/inversion-dev"><img src="https://avatars.githubusercontent.com/u/127298233?s=200&v=4" width="50"></a>
 <a href="https://github.com/MuesliSwapTeam/"><img  src="https://avatars.githubusercontent.com/u/91151317?v=4" width="50" /></a>
 <a href="https://github.com/AadaFinance/"><img  src="https://avatars.githubusercontent.com/u/89693711?v=4" width="50" /></a>
+
+The main sponsor of this project is [Inversion](https://inversion.dev/cardano/). Here is a word from them!
+
+> At Inversion, we pride ourselves on our passion for life and our ability to create exceptional software solutions for our clients. Our team of experts, with over a century of cumulative experience, is dedicated to harnessing the power of the Cardano blockchain to bring innovative and scalable decentralized applications to life. We've successfully built applications for NFT management, staking and delegation, chain data monitoring, analytics, and web3 integrations, as well as countless non-blockchain systems. With a focus on security, transparency, and sustainability, our team is excited to contribute to the Cardano ecosystem, pushing the boundaries of decentralized technologies to improve lives worldwide. Trust Inversion to be your go-to partner for robust, effective, and forward-thinking solutions, whether blockchain based, traditional systems, or a mix of the two.
+
+They have recently started a podcast, called "Africa On Chain", which you can check out here:
+https://www.youtube.com/@africaonchain

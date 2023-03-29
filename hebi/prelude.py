@@ -205,7 +205,7 @@ class SomeScriptHash(PlutusData):
     script_hash: DatumHash
 
 
-# The abstract super type of any object in eopsin.
+# The abstract super type of any object in opshin.
 # Use if you don't know what kind of object is being passed or if it doesn't matter.
 BuiltinData = Anything
 

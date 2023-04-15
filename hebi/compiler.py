@@ -4,6 +4,7 @@ from ast import fix_missing_locations
 
 from .optimize.optimize_remove_comments import OptimizeRemoveDeadconstants
 from .rewrite.rewrite_forbidden_overwrites import RewriteForbiddenOverwrites
+from .rewrite.rewrite_guaranteed_variables import RewriteGuaranteedVariables
 from .rewrite.rewrite_import import RewriteImport
 from .rewrite.rewrite_import_dataclasses import RewriteImportDataclasses
 from .rewrite.rewrite_import_hashlib import RewriteImportHashlib
@@ -704,6 +705,7 @@ def compile(
         RewriteImportDataclasses(),
         RewriteInjectBuiltins(),
         RewriteDuplicateAssignment(),
+        RewriteGuaranteedVariables(),
         # The type inference needs to be run after complex python operations were rewritten
         AggressiveTypeInferencer(),
         # Rewrites that circumvent the type inference or use its results

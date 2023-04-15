@@ -29,6 +29,7 @@ script:
   coverage run -a --source=hebi -m hebi compile_pluto examples/smart_contracts/assert_sum.py
 - >
   coverage run -a --source=hebi -m hebi build examples/smart_contracts/assert_sum.py
+# all smart contracts
 - >
   for i in $(find examples -type f -name "*.py" -not \( -name "broken*" -o -name "extract*" -o -name "__*" \)); do
     echo "$i"

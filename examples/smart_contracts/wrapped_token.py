@@ -1,7 +1,7 @@
 from hebi.prelude import *
 
 
-@dataclass()
+@dataclass
 class Empty(PlutusData):
     pass
 

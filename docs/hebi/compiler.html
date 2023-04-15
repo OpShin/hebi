@@ -72,6 +72,7 @@ fill="currentColor" class="octo-body"></path>
 from logging import getLogger
 from ast import fix_missing_locations
 
+from .optimize.optimize_remove_comments import OptimizeRemoveDeadconstants
 from .rewrite.rewrite_forbidden_overwrites import RewriteForbiddenOverwrites
 from .rewrite.rewrite_import import RewriteImport
 from .rewrite.rewrite_import_dataclasses import RewriteImportDataclasses
@@ -189,8 +190,9 @@ class UPLCCompiler(CompilingNodeTransformer):
 
     step = &#34;Compiling python statements to UPLC&#34;
 
-    def __init__(self, force_three_params=False):
+    def __init__(self, force_three_params=False, validator_function_name=&#34;validator&#34;):
         self.force_three_params = force_three_params
+        self.validator_function_name = validator_function_name
 
     def visit_sequence(
         self, node_seq: typing.List[typedstmt]
@@ -256,20 +258,24 @@ class UPLCCompiler(CompilingNodeTransformer):
         # TODO can use more sophisiticated procedure here i.e. functions marked by comment
         main_fun: typing.Optional[InstanceType] = None
         for s in node.body:
-            if isinstance(s, FunctionDef) and s.name == &#34;validator&#34;:
+            if (
+                isinstance(s, FunctionDef)
+                and s.orig_name == self.validator_function_name
+            ):
                 main_fun = s
-        assert main_fun is not None, &#34;Could not find function named validator&#34;
-        main_fun_typ = main_fun.typ
-        main_fun_typ_typ: FunctionType = main_fun_typ.typ
+        assert (
+            main_fun is not None
+        ), f&#34;Could not find function named {self.validator_function_name}&#34;
+        main_fun_typ: FunctionType = main_fun.typ.typ
         assert isinstance(
-            main_fun_typ_typ, FunctionType
-        ), &#34;Variable named validator is not of type function&#34;
+            main_fun_typ, FunctionType
+        ), f&#34;Variable named {self.validator_function_name} is not of type function&#34;
 
         # check if this is a contract written to double function
         enable_double_func_mint_spend = False
-        if len(main_fun_typ_typ.argtyps) &gt;= 3 and self.force_three_params:
+        if len(main_fun_typ.typ.argtyps) &gt;= 3 and self.force_three_params:
             # check if is possible
-            second_last_arg = main_fun_typ_typ.argtyps[-2]
+            second_last_arg = main_fun_typ.typ.argtyps[-2]
             assert isinstance(
                 second_last_arg, InstanceType
             ), &#34;Can not pass Class into validator&#34;
@@ -293,14 +299,16 @@ class UPLCCompiler(CompilingNodeTransformer):
 
         body = node.body + [
             TypedReturn(
-                value=Name(id=&#34;validator&#34;, typ=main_fun_typ, ctx=Load()),
-                typ=main_fun_typ_typ.rettyp,
+                value=Name(
+                    id=self.validator_function_name, typ=main_fun_typ, ctx=Load()
+                ),
+                typ=main_fun_typ.typ.rettyp,
             )
         ]
 
         validator = plt.Lambda(
-            [f&#34;p{i}&#34; for i, _ in enumerate(main_fun_typ_typ.argtyps)],
-            transform_output_map(main_fun_typ_typ.rettyp)(
+            [f&#34;p{i}&#34; for i, _ in enumerate(main_fun_typ.typ.argtyps)],
+            transform_output_map(main_fun_typ.typ.rettyp)(
                 plt.Let(
                     [
                         (
@@ -313,7 +321,7 @@ class UPLCCompiler(CompilingNodeTransformer):
                         plt.Var(&#34;val&#34;),
                         *[
                             transform_ext_params_map(a)(plt.Var(f&#34;p{i}&#34;))
-                            for i, a in enumerate(main_fun_typ_typ.argtyps)
+                            for i, a in enumerate(main_fun_typ.typ.argtyps)
                         ],
                     ),
                 ),
@@ -321,7 +329,7 @@ class UPLCCompiler(CompilingNodeTransformer):
         )
         if enable_double_func_mint_spend:
             validator = wrap_validator_double_function(
-                validator, pass_through=len(main_fun_typ_typ.argtyps) - 3
+                validator, pass_through=len(main_fun_typ.typ.argtyps) - 3
             )
         elif self.force_three_params:
             # Error if the double function is enforced but not possible
@@ -369,6 +377,12 @@ class UPLCCompiler(CompilingNodeTransformer):
             # we need to map this as it will originate from PlutusData
             # AnyType is the only type other than the builtin itself that can be cast to builtin values
             val = transform_ext_params_map(node.target.typ)(val)
+        if isinstance(node.target.typ, InstanceType) and isinstance(
+            node.target.typ.typ, AnyType
+        ):
+            # we need to map this back as it will be treated as PlutusData
+            # AnyType is the only type other than the builtin itself that can be cast to from builtin values
+            val = transform_output_map(node.value.typ)(val)
         return lambda x: plt.Let([(node.target.id, val)], x)
 
     def visit_Name(self, node: TypedName) -&gt; plt.AST:
@@ -440,7 +454,11 @@ class UPLCCompiler(CompilingNodeTransformer):
 
     def visit_Return(self, node: TypedReturn) -&gt; typing.Callable[[plt.AST], plt.AST]:
         # Throw away the term we were passed, this is going to be the last!
-        return lambda x: self.visit(node.value)
+        compiled_return = self.visit(node.value)
+        if isinstance(node.typ.typ.rettyp.typ, AnyType):
+            # if the function returns generic data, wrap the function return value
+            compiled_return = transform_output_map(node.value.typ)(compiled_return)
+        return lambda _: compiled_return
 
     def visit_Pass(self, node: TypedPass) -&gt; typing.Callable[[plt.AST], plt.AST]:
         return lambda x: x
@@ -464,6 +482,28 @@ class UPLCCompiler(CompilingNodeTransformer):
                 self.visit(node.value),
                 index,
                 len(node.value.typ.typ.typs),
+            )
+        if isinstance(node.value.typ.typ, PairType):
+            assert isinstance(
+                node.slice, Constant
+            ), &#34;Only constant index access for pairs is supported&#34;
+            assert isinstance(
+                node.slice.value, int
+            ), &#34;Only constant index integer access for pairs is supported&#34;
+            index = node.slice.value
+            if index &lt; 0:
+                index += 2
+            assert isinstance(node.ctx, Load), &#34;Pairs are read-only&#34;
+            assert (
+                0 &lt;= index &lt; 2
+            ), f&#34;Pairs only have 2 elements, index should be 0 or 1, is {node.slice.value}&#34;
+            member_func = plt.FstPair if index == 0 else plt.SndPair
+            # the content of pairs is always Data, so we need to unwrap
+            member_typ = node.typ
+            return transform_ext_params_map(member_typ)(
+                member_func(
+                    self.visit(node.value),
+                ),
             )
         if isinstance(node.value.typ.typ, ListType):
             assert (
@@ -489,6 +529,34 @@ class UPLCCompiler(CompilingNodeTransformer):
                 ],
                 plt.IndexAccessList(plt.Var(&#34;l&#34;), plt.Var(&#34;i&#34;)),
             )
+        elif isinstance(node.value.typ.typ, DictType):
+            dict_typ = node.value.typ.typ
+            if not isinstance(node.slice, Slice):
+                return plt.Let(
+                    [
+                        (
+                            &#34;key&#34;,
+                            self.visit(node.slice),
+                        )
+                    ],
+                    transform_ext_params_map(dict_typ.value_typ)(
+                        plt.SndPair(
+                            plt.FindList(
+                                self.visit(node.value),
+                                plt.Lambda(
+                                    [&#34;x&#34;],
+                                    plt.EqualsData(
+                                        transform_output_map(dict_typ.key_typ)(
+                                            plt.Var(&#34;key&#34;)
+                                        ),
+                                        plt.FstPair(plt.Var(&#34;x&#34;)),
+                                    ),
+                                ),
+                                plt.TraceError(&#34;KeyError&#34;),
+                            ),
+                        ),
+                    ),
+                )
         elif isinstance(node.value.typ.typ, ByteStringType):
             if not isinstance(node.slice, Slice):
                 return plt.Let(
@@ -518,7 +586,10 @@ class UPLCCompiler(CompilingNodeTransformer):
             elif isinstance(node.slice, Slice):
                 return plt.Let(
                     [
-                        (&#34;bs&#34;, self.visit(node.value)),
+                        (
+                            &#34;bs&#34;,
+                            self.visit(node.value),
+                        ),
                         (
                             &#34;raw_i&#34;,
                             self.visit(node.slice.lower),
@@ -572,7 +643,9 @@ class UPLCCompiler(CompilingNodeTransformer):
                         ),
                     ),
                 )
-        raise NotImplementedError(f&#34;Could not implement subscript of {node}&#34;)
+        raise NotImplementedError(
+            f&#39;Could not implement subscript &#34;{node.slice}&#34; of &#34;{node.value}&#34;&#39;
+        )
 
     def visit_Tuple(self, node: TypedTuple) -&gt; plt.AST:
         return plt.FunctionalTuple(*(self.visit(e) for e in node.elts))
@@ -678,7 +751,12 @@ class UPLCCompiler(CompilingNodeTransformer):
         raise NotImplementedError(f&#34;Can not compile {node}&#34;)
 
 
-def compile(prog: AST, filename=None, force_three_params=False):
+def compile(
+    prog: AST,
+    filename=None,
+    force_three_params=False,
+    validator_function_name=&#34;validator&#34;,
+):
     rewrite_steps = [
         # Important to call this one first - it imports all further files
         RewriteImport(filename=filename),
@@ -707,10 +785,13 @@ def compile(prog: AST, filename=None, force_three_params=False):
     compile_pipeline = [
         # Apply optimizations
         OptimizeRemoveDeadvars(),
-        # OptimizeVarlen(),
+        OptimizeRemoveDeadconstants(),
         OptimizeRemovePass(),
         # the compiler runs last
-        UPLCCompiler(force_three_params=force_three_params),
+        UPLCCompiler(
+            force_three_params=force_three_params,
+            validator_function_name=validator_function_name,
+        ),
     ]
     for s in compile_pipeline:
         prog = s.visit(prog)
@@ -726,7 +807,7 @@ def compile(prog: AST, filename=None, force_three_params=False):
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="hebi.compiler.compile"><code class="name flex">
-<span>def <span class="ident">compile</span></span>(<span>prog: _ast.AST, filename=None, force_three_params=False)</span>
+<span>def <span class="ident">compile</span></span>(<span>prog: _ast.AST, filename=None, force_three_params=False, validator_function_name='validator')</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -734,7 +815,12 @@ def compile(prog: AST, filename=None, force_three_params=False):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def compile(prog: AST, filename=None, force_three_params=False):
+<pre><code class="python">def compile(
+    prog: AST,
+    filename=None,
+    force_three_params=False,
+    validator_function_name=&#34;validator&#34;,
+):
     rewrite_steps = [
         # Important to call this one first - it imports all further files
         RewriteImport(filename=filename),
@@ -763,10 +849,13 @@ def compile(prog: AST, filename=None, force_three_params=False):
     compile_pipeline = [
         # Apply optimizations
         OptimizeRemoveDeadvars(),
-        # OptimizeVarlen(),
+        OptimizeRemoveDeadconstants(),
         OptimizeRemovePass(),
         # the compiler runs last
-        UPLCCompiler(force_three_params=force_three_params),
+        UPLCCompiler(
+            force_three_params=force_three_params,
+            validator_function_name=validator_function_name,
+        ),
     ]
     for s in compile_pipeline:
         prog = s.visit(prog)
@@ -820,7 +909,7 @@ def compile(prog: AST, filename=None, force_three_params=False):
 <dl>
 <dt id="hebi.compiler.UPLCCompiler"><code class="flex name class">
 <span>class <span class="ident">UPLCCompiler</span></span>
-<span>(</span><span>force_three_params=False)</span>
+<span>(</span><span>force_three_params=False, validator_function_name='validator')</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Expects a TypedAST and returns UPLC/Pluto like code</p></div>
@@ -835,8 +924,9 @@ def compile(prog: AST, filename=None, force_three_params=False):
 
     step = &#34;Compiling python statements to UPLC&#34;
 
-    def __init__(self, force_three_params=False):
+    def __init__(self, force_three_params=False, validator_function_name=&#34;validator&#34;):
         self.force_three_params = force_three_params
+        self.validator_function_name = validator_function_name
 
     def visit_sequence(
         self, node_seq: typing.List[typedstmt]
@@ -902,20 +992,24 @@ def compile(prog: AST, filename=None, force_three_params=False):
         # TODO can use more sophisiticated procedure here i.e. functions marked by comment
         main_fun: typing.Optional[InstanceType] = None
         for s in node.body:
-            if isinstance(s, FunctionDef) and s.name == &#34;validator&#34;:
+            if (
+                isinstance(s, FunctionDef)
+                and s.orig_name == self.validator_function_name
+            ):
                 main_fun = s
-        assert main_fun is not None, &#34;Could not find function named validator&#34;
-        main_fun_typ = main_fun.typ
-        main_fun_typ_typ: FunctionType = main_fun_typ.typ
+        assert (
+            main_fun is not None
+        ), f&#34;Could not find function named {self.validator_function_name}&#34;
+        main_fun_typ: FunctionType = main_fun.typ.typ
         assert isinstance(
-            main_fun_typ_typ, FunctionType
-        ), &#34;Variable named validator is not of type function&#34;
+            main_fun_typ, FunctionType
+        ), f&#34;Variable named {self.validator_function_name} is not of type function&#34;
 
         # check if this is a contract written to double function
         enable_double_func_mint_spend = False
-        if len(main_fun_typ_typ.argtyps) &gt;= 3 and self.force_three_params:
+        if len(main_fun_typ.typ.argtyps) &gt;= 3 and self.force_three_params:
             # check if is possible
-            second_last_arg = main_fun_typ_typ.argtyps[-2]
+            second_last_arg = main_fun_typ.typ.argtyps[-2]
             assert isinstance(
                 second_last_arg, InstanceType
             ), &#34;Can not pass Class into validator&#34;
@@ -939,14 +1033,16 @@ def compile(prog: AST, filename=None, force_three_params=False):
 
         body = node.body + [
             TypedReturn(
-                value=Name(id=&#34;validator&#34;, typ=main_fun_typ, ctx=Load()),
-                typ=main_fun_typ_typ.rettyp,
+                value=Name(
+                    id=self.validator_function_name, typ=main_fun_typ, ctx=Load()
+                ),
+                typ=main_fun_typ.typ.rettyp,
             )
         ]
 
         validator = plt.Lambda(
-            [f&#34;p{i}&#34; for i, _ in enumerate(main_fun_typ_typ.argtyps)],
-            transform_output_map(main_fun_typ_typ.rettyp)(
+            [f&#34;p{i}&#34; for i, _ in enumerate(main_fun_typ.typ.argtyps)],
+            transform_output_map(main_fun_typ.typ.rettyp)(
                 plt.Let(
                     [
                         (
@@ -959,7 +1055,7 @@ def compile(prog: AST, filename=None, force_three_params=False):
                         plt.Var(&#34;val&#34;),
                         *[
                             transform_ext_params_map(a)(plt.Var(f&#34;p{i}&#34;))
-                            for i, a in enumerate(main_fun_typ_typ.argtyps)
+                            for i, a in enumerate(main_fun_typ.typ.argtyps)
                         ],
                     ),
                 ),
@@ -967,7 +1063,7 @@ def compile(prog: AST, filename=None, force_three_params=False):
         )
         if enable_double_func_mint_spend:
             validator = wrap_validator_double_function(
-                validator, pass_through=len(main_fun_typ_typ.argtyps) - 3
+                validator, pass_through=len(main_fun_typ.typ.argtyps) - 3
             )
         elif self.force_three_params:
             # Error if the double function is enforced but not possible
@@ -1015,6 +1111,12 @@ def compile(prog: AST, filename=None, force_three_params=False):
             # we need to map this as it will originate from PlutusData
             # AnyType is the only type other than the builtin itself that can be cast to builtin values
             val = transform_ext_params_map(node.target.typ)(val)
+        if isinstance(node.target.typ, InstanceType) and isinstance(
+            node.target.typ.typ, AnyType
+        ):
+            # we need to map this back as it will be treated as PlutusData
+            # AnyType is the only type other than the builtin itself that can be cast to from builtin values
+            val = transform_output_map(node.value.typ)(val)
         return lambda x: plt.Let([(node.target.id, val)], x)
 
     def visit_Name(self, node: TypedName) -&gt; plt.AST:
@@ -1086,7 +1188,11 @@ def compile(prog: AST, filename=None, force_three_params=False):
 
     def visit_Return(self, node: TypedReturn) -&gt; typing.Callable[[plt.AST], plt.AST]:
         # Throw away the term we were passed, this is going to be the last!
-        return lambda x: self.visit(node.value)
+        compiled_return = self.visit(node.value)
+        if isinstance(node.typ.typ.rettyp.typ, AnyType):
+            # if the function returns generic data, wrap the function return value
+            compiled_return = transform_output_map(node.value.typ)(compiled_return)
+        return lambda _: compiled_return
 
     def visit_Pass(self, node: TypedPass) -&gt; typing.Callable[[plt.AST], plt.AST]:
         return lambda x: x
@@ -1110,6 +1216,28 @@ def compile(prog: AST, filename=None, force_three_params=False):
                 self.visit(node.value),
                 index,
                 len(node.value.typ.typ.typs),
+            )
+        if isinstance(node.value.typ.typ, PairType):
+            assert isinstance(
+                node.slice, Constant
+            ), &#34;Only constant index access for pairs is supported&#34;
+            assert isinstance(
+                node.slice.value, int
+            ), &#34;Only constant index integer access for pairs is supported&#34;
+            index = node.slice.value
+            if index &lt; 0:
+                index += 2
+            assert isinstance(node.ctx, Load), &#34;Pairs are read-only&#34;
+            assert (
+                0 &lt;= index &lt; 2
+            ), f&#34;Pairs only have 2 elements, index should be 0 or 1, is {node.slice.value}&#34;
+            member_func = plt.FstPair if index == 0 else plt.SndPair
+            # the content of pairs is always Data, so we need to unwrap
+            member_typ = node.typ
+            return transform_ext_params_map(member_typ)(
+                member_func(
+                    self.visit(node.value),
+                ),
             )
         if isinstance(node.value.typ.typ, ListType):
             assert (
@@ -1135,6 +1263,34 @@ def compile(prog: AST, filename=None, force_three_params=False):
                 ],
                 plt.IndexAccessList(plt.Var(&#34;l&#34;), plt.Var(&#34;i&#34;)),
             )
+        elif isinstance(node.value.typ.typ, DictType):
+            dict_typ = node.value.typ.typ
+            if not isinstance(node.slice, Slice):
+                return plt.Let(
+                    [
+                        (
+                            &#34;key&#34;,
+                            self.visit(node.slice),
+                        )
+                    ],
+                    transform_ext_params_map(dict_typ.value_typ)(
+                        plt.SndPair(
+                            plt.FindList(
+                                self.visit(node.value),
+                                plt.Lambda(
+                                    [&#34;x&#34;],
+                                    plt.EqualsData(
+                                        transform_output_map(dict_typ.key_typ)(
+                                            plt.Var(&#34;key&#34;)
+                                        ),
+                                        plt.FstPair(plt.Var(&#34;x&#34;)),
+                                    ),
+                                ),
+                                plt.TraceError(&#34;KeyError&#34;),
+                            ),
+                        ),
+                    ),
+                )
         elif isinstance(node.value.typ.typ, ByteStringType):
             if not isinstance(node.slice, Slice):
                 return plt.Let(
@@ -1164,7 +1320,10 @@ def compile(prog: AST, filename=None, force_three_params=False):
             elif isinstance(node.slice, Slice):
                 return plt.Let(
                     [
-                        (&#34;bs&#34;, self.visit(node.value)),
+                        (
+                            &#34;bs&#34;,
+                            self.visit(node.value),
+                        ),
                         (
                             &#34;raw_i&#34;,
                             self.visit(node.slice.lower),
@@ -1218,7 +1377,9 @@ def compile(prog: AST, filename=None, force_three_params=False):
                         ),
                     ),
                 )
-        raise NotImplementedError(f&#34;Could not implement subscript of {node}&#34;)
+        raise NotImplementedError(
+            f&#39;Could not implement subscript &#34;{node.slice}&#34; of &#34;{node.value}&#34;&#39;
+        )
 
     def visit_Tuple(self, node: TypedTuple) -&gt; plt.AST:
         return plt.FunctionalTuple(*(self.visit(e) for e in node.elts))
@@ -1387,6 +1548,12 @@ def compile(prog: AST, filename=None, force_three_params=False):
         # we need to map this as it will originate from PlutusData
         # AnyType is the only type other than the builtin itself that can be cast to builtin values
         val = transform_ext_params_map(node.target.typ)(val)
+    if isinstance(node.target.typ, InstanceType) and isinstance(
+        node.target.typ.typ, AnyType
+    ):
+        # we need to map this back as it will be treated as PlutusData
+        # AnyType is the only type other than the builtin itself that can be cast to from builtin values
+        val = transform_output_map(node.value.typ)(val)
     return lambda x: plt.Let([(node.target.id, val)], x)</code></pre>
 </details>
 </dd>
@@ -1774,20 +1941,24 @@ def compile(prog: AST, filename=None, force_three_params=False):
     # TODO can use more sophisiticated procedure here i.e. functions marked by comment
     main_fun: typing.Optional[InstanceType] = None
     for s in node.body:
-        if isinstance(s, FunctionDef) and s.name == &#34;validator&#34;:
+        if (
+            isinstance(s, FunctionDef)
+            and s.orig_name == self.validator_function_name
+        ):
             main_fun = s
-    assert main_fun is not None, &#34;Could not find function named validator&#34;
-    main_fun_typ = main_fun.typ
-    main_fun_typ_typ: FunctionType = main_fun_typ.typ
+    assert (
+        main_fun is not None
+    ), f&#34;Could not find function named {self.validator_function_name}&#34;
+    main_fun_typ: FunctionType = main_fun.typ.typ
     assert isinstance(
-        main_fun_typ_typ, FunctionType
-    ), &#34;Variable named validator is not of type function&#34;
+        main_fun_typ, FunctionType
+    ), f&#34;Variable named {self.validator_function_name} is not of type function&#34;
 
     # check if this is a contract written to double function
     enable_double_func_mint_spend = False
-    if len(main_fun_typ_typ.argtyps) &gt;= 3 and self.force_three_params:
+    if len(main_fun_typ.typ.argtyps) &gt;= 3 and self.force_three_params:
         # check if is possible
-        second_last_arg = main_fun_typ_typ.argtyps[-2]
+        second_last_arg = main_fun_typ.typ.argtyps[-2]
         assert isinstance(
             second_last_arg, InstanceType
         ), &#34;Can not pass Class into validator&#34;
@@ -1811,14 +1982,16 @@ def compile(prog: AST, filename=None, force_three_params=False):
 
     body = node.body + [
         TypedReturn(
-            value=Name(id=&#34;validator&#34;, typ=main_fun_typ, ctx=Load()),
-            typ=main_fun_typ_typ.rettyp,
+            value=Name(
+                id=self.validator_function_name, typ=main_fun_typ, ctx=Load()
+            ),
+            typ=main_fun_typ.typ.rettyp,
         )
     ]
 
     validator = plt.Lambda(
-        [f&#34;p{i}&#34; for i, _ in enumerate(main_fun_typ_typ.argtyps)],
-        transform_output_map(main_fun_typ_typ.rettyp)(
+        [f&#34;p{i}&#34; for i, _ in enumerate(main_fun_typ.typ.argtyps)],
+        transform_output_map(main_fun_typ.typ.rettyp)(
             plt.Let(
                 [
                     (
@@ -1831,7 +2004,7 @@ def compile(prog: AST, filename=None, force_three_params=False):
                     plt.Var(&#34;val&#34;),
                     *[
                         transform_ext_params_map(a)(plt.Var(f&#34;p{i}&#34;))
-                        for i, a in enumerate(main_fun_typ_typ.argtyps)
+                        for i, a in enumerate(main_fun_typ.typ.argtyps)
                     ],
                 ),
             ),
@@ -1839,7 +2012,7 @@ def compile(prog: AST, filename=None, force_three_params=False):
     )
     if enable_double_func_mint_spend:
         validator = wrap_validator_double_function(
-            validator, pass_through=len(main_fun_typ_typ.argtyps) - 3
+            validator, pass_through=len(main_fun_typ.typ.argtyps) - 3
         )
     elif self.force_three_params:
         # Error if the double function is enforced but not possible
@@ -1919,7 +2092,11 @@ def compile(prog: AST, filename=None, force_three_params=False):
 </summary>
 <pre><code class="python">def visit_Return(self, node: TypedReturn) -&gt; typing.Callable[[plt.AST], plt.AST]:
     # Throw away the term we were passed, this is going to be the last!
-    return lambda x: self.visit(node.value)</code></pre>
+    compiled_return = self.visit(node.value)
+    if isinstance(node.typ.typ.rettyp.typ, AnyType):
+        # if the function returns generic data, wrap the function return value
+        compiled_return = transform_output_map(node.value.typ)(compiled_return)
+    return lambda _: compiled_return</code></pre>
 </details>
 </dd>
 <dt id="hebi.compiler.UPLCCompiler.visit_Subscript"><code class="name flex">
@@ -1951,6 +2128,28 @@ def compile(prog: AST, filename=None, force_three_params=False):
             index,
             len(node.value.typ.typ.typs),
         )
+    if isinstance(node.value.typ.typ, PairType):
+        assert isinstance(
+            node.slice, Constant
+        ), &#34;Only constant index access for pairs is supported&#34;
+        assert isinstance(
+            node.slice.value, int
+        ), &#34;Only constant index integer access for pairs is supported&#34;
+        index = node.slice.value
+        if index &lt; 0:
+            index += 2
+        assert isinstance(node.ctx, Load), &#34;Pairs are read-only&#34;
+        assert (
+            0 &lt;= index &lt; 2
+        ), f&#34;Pairs only have 2 elements, index should be 0 or 1, is {node.slice.value}&#34;
+        member_func = plt.FstPair if index == 0 else plt.SndPair
+        # the content of pairs is always Data, so we need to unwrap
+        member_typ = node.typ
+        return transform_ext_params_map(member_typ)(
+            member_func(
+                self.visit(node.value),
+            ),
+        )
     if isinstance(node.value.typ.typ, ListType):
         assert (
             node.slice.typ == IntegerInstanceType
@@ -1975,6 +2174,34 @@ def compile(prog: AST, filename=None, force_three_params=False):
             ],
             plt.IndexAccessList(plt.Var(&#34;l&#34;), plt.Var(&#34;i&#34;)),
         )
+    elif isinstance(node.value.typ.typ, DictType):
+        dict_typ = node.value.typ.typ
+        if not isinstance(node.slice, Slice):
+            return plt.Let(
+                [
+                    (
+                        &#34;key&#34;,
+                        self.visit(node.slice),
+                    )
+                ],
+                transform_ext_params_map(dict_typ.value_typ)(
+                    plt.SndPair(
+                        plt.FindList(
+                            self.visit(node.value),
+                            plt.Lambda(
+                                [&#34;x&#34;],
+                                plt.EqualsData(
+                                    transform_output_map(dict_typ.key_typ)(
+                                        plt.Var(&#34;key&#34;)
+                                    ),
+                                    plt.FstPair(plt.Var(&#34;x&#34;)),
+                                ),
+                            ),
+                            plt.TraceError(&#34;KeyError&#34;),
+                        ),
+                    ),
+                ),
+            )
     elif isinstance(node.value.typ.typ, ByteStringType):
         if not isinstance(node.slice, Slice):
             return plt.Let(
@@ -2004,7 +2231,10 @@ def compile(prog: AST, filename=None, force_three_params=False):
         elif isinstance(node.slice, Slice):
             return plt.Let(
                 [
-                    (&#34;bs&#34;, self.visit(node.value)),
+                    (
+                        &#34;bs&#34;,
+                        self.visit(node.value),
+                    ),
                     (
                         &#34;raw_i&#34;,
                         self.visit(node.slice.lower),
@@ -2058,7 +2288,9 @@ def compile(prog: AST, filename=None, force_three_params=False):
                     ),
                 ),
             )
-    raise NotImplementedError(f&#34;Could not implement subscript of {node}&#34;)</code></pre>
+    raise NotImplementedError(
+        f&#39;Could not implement subscript &#34;{node.slice}&#34; of &#34;{node.value}&#34;&#39;
+    )</code></pre>
 </details>
 </dd>
 <dt id="hebi.compiler.UPLCCompiler.visit_Tuple"><code class="name flex">

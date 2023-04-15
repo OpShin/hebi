@@ -2,7 +2,7 @@ from copy import copy
 import ast
 
 from .typed_ast import *
-from .util import PythonBuiltInTypes, CompilingNodeTransformer
+from .util import PythonBuiltInTypes, CompilingNodeTransformer, ReturnExtractor
 
 # from frozendict import frozendict
 
@@ -42,21 +42,12 @@ INITIAL_SCOPE.update(
 )
 
 
-class ReturnExtractor(NodeVisitor):
-    """Utility to find all Return statements in an AST subtree"""
-
-    def __init__(self):
-        self.returns = []
-
-    def visit_Return(self, node: Return) -> None:
-        self.returns.append(node)
-
-
 class AggressiveTypeInferencer(CompilingNodeTransformer):
     step = "Static Type Inference"
 
     # A stack of dictionaries for storing scoped knowledge of variable types
     scopes = [INITIAL_SCOPE]
+    current_ret_type = []
 
     # Obtain the type of a variable name in the current scope
     def variable_type(self, name: str) -> Type:
@@ -73,7 +64,10 @@ class AggressiveTypeInferencer(CompilingNodeTransformer):
         self.scopes.pop()
 
     def set_variable_type(self, name: str, typ: Type, force=False):
-        if not force and name in self.scopes[-1] and typ != self.scopes[-1][name]:
+        if not force and name in self.scopes[-1] and self.scopes[-1][name] != typ:
+            if self.scopes[-1][name] >= typ:
+                # the specified type is broader, we pass on this
+                return
             raise TypeInferenceError(
                 f"Type {self.scopes[-1][name]} of variable {name} in local scope does not match inferred type {typ}"
             )
@@ -143,9 +137,7 @@ class AggressiveTypeInferencer(CompilingNodeTransformer):
                 "Only Union, Dict and List are allowed as Generic types"
             )
         if ann is None:
-            raise TypeInferenceError(
-                "Type annotation is missing for a function argument or return value"
-            )
+            return AnyType()
         raise NotImplementedError(f"Annotation type {ann.__class__} is not supported")
 
     def visit_ClassDef(self, node: ClassDef) -> TypedClassDef:
@@ -221,9 +213,10 @@ class AggressiveTypeInferencer(CompilingNodeTransformer):
             node.target.id, InstanceType(typed_ass.annotation), force=True
         )
         typed_ass.target = self.visit(node.target)
-        assert typed_ass.value.typ >= InstanceType(
-            typed_ass.annotation
-        ), "Can only downcast to a specialized type"
+        assert (
+            typed_ass.value.typ >= InstanceType(typed_ass.annotation)
+            or InstanceType(typed_ass.annotation) >= typed_ass.value.typ
+        ), "Can only cast between related types"
         return typed_ass
 
     def visit_If(self, node: If) -> TypedIf:
@@ -348,11 +341,13 @@ class AggressiveTypeInferencer(CompilingNodeTransformer):
     def visit_FunctionDef(self, node: FunctionDef) -> TypedFunctionDef:
         tfd = copy(node)
         assert not node.decorator_list, "Functions may not have decorators"
+        rettyp = InstanceType(self.type_from_annotation(tfd.returns))
         self.enter_scope()
+        self.current_ret_type.append(rettyp)
         tfd.args = self.visit(node.args)
         functyp = FunctionType(
             [t.typ for t in tfd.args.args],
-            InstanceType(self.type_from_annotation(tfd.returns)),
+            rettyp,
         )
         tfd.typ = InstanceType(functyp)
         # We need the function type inside for recursion
@@ -372,6 +367,7 @@ class AggressiveTypeInferencer(CompilingNodeTransformer):
                 functyp.rettyp >= r.typ for r in rets
             ), f"Function '{node.name}' annotated return type does not match actual return type"
         self.exit_scope()
+        self.current_ret_type.pop(-1)
         # We need the function type outside for usage
         self.set_variable_type(node.name, tfd.typ)
         return tfd
@@ -437,7 +433,18 @@ class AggressiveTypeInferencer(CompilingNodeTransformer):
                 ts.typ = ts.value.typ.typ.typs[ts.slice.value]
             else:
                 raise TypeInferenceError(
-                    f"Could not infer type of subscript of typ {ts.value.typ.__class__}"
+                    f"Could not infer type of subscript of typ {ts.value.typ.typ.__class__}"
+                )
+        elif isinstance(ts.value.typ.typ, PairType):
+            if isinstance(ts.slice, Constant) and isinstance(ts.slice.value, int):
+                ts.typ = (
+                    ts.value.typ.typ.l_typ
+                    if ts.slice.value == 0
+                    else ts.value.typ.typ.r_typ
+                )
+            else:
+                raise TypeInferenceError(
+                    f"Could not infer type of subscript of typ {ts.value.typ.typ.__class__}"
                 )
         elif isinstance(ts.value.typ.typ, ListType):
             ts.typ = ts.value.typ.typ.typ
@@ -472,9 +479,16 @@ class AggressiveTypeInferencer(CompilingNodeTransformer):
                 )
         elif isinstance(ts.value.typ.typ, DictType):
             # TODO could be implemented with potentially just erroring. It might be desired to avoid this though.
-            raise TypeInferenceError(
-                f"Could not infer type of subscript of dict. Use 'get' with a default value instead."
-            )
+            if not isinstance(ts.slice, Slice):
+                ts.slice = self.visit(node.slice)
+                assert (
+                    ts.slice.typ == ts.value.typ.typ.key_typ
+                ), f"Dict subscript must have dict key type {ts.value.typ.typ.key_typ} but has type {ts.slice.typ}"
+                ts.typ = ts.value.typ.typ.value_typ
+            else:
+                raise TypeInferenceError(
+                    f"Could not infer type of subscript of dict with a slice."
+                )
         else:
             raise TypeInferenceError(
                 f"Could not infer type of subscript of typ {ts.value.typ.__class__}"
@@ -521,7 +535,9 @@ class AggressiveTypeInferencer(CompilingNodeTransformer):
     def visit_Return(self, node: Return) -> TypedReturn:
         tp = copy(node)
         tp.value = self.visit(node.value)
-        tp.typ = tp.value.typ
+        tp.typ = (
+            tp.value.typ if not self.current_ret_type else self.current_ret_type[-1]
+        )
         return tp
 
     def visit_Attribute(self, node: Attribute) -> TypedAttribute:

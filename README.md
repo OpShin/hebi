@@ -5,11 +5,11 @@
 <h1 style="text-align: center;">hebi</h1></br>
 
 
-<a href="https://app.travis-ci.com/OpShin/hebi"><img alt="Build Status" src="https://app.travis-ci.com/OpShin/hebi.svg?branch=master"/></a>
+<a href="https://app.travis-ci.com/OpShin/hebi"><img alt="Build Status" src="https://app.travis-ci.com/OpShin/hebi.svg?branch=main"/></a>
 <a href="https://pypi.org/project/hebi/"><img alt="PyPI version" src="https://badge.fury.io/py/hebi.svg"/></a>
 <img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/hebi.svg" />
 <a href="https://pypi.org/project/hebi/"><img alt="PyPI - Status" src="https://img.shields.io/pypi/status/hebi.svg" /></a>
-<a href="https://coveralls.io/github/OpShin/hebi?branch=master"><img alt="Coverage Status" src="https://coveralls.io/repos/github/OpShin/hebi/badge.svg?branch=master" /></a>
+<a href="https://coveralls.io/github/OpShin/hebi?branch=main"><img alt="Coverage Status" src="https://coveralls.io/repos/github/OpShin/hebi/badge.svg?branch=main" /></a>
 
 </div>
 
@@ -85,8 +85,8 @@ A short non-complete introduction in starting to write smart contracts follows.
 2. Make sure you understand python. hebi works like python and uses python. There are tons of tutorials for python, choose what suits you best.
 3. Make sure your contract is valid python and the types check out. Write simple contracts first and run them using `hebi eval` to get a feeling for how they work.
 4. Make sure your contract is valid hebi code. Run `hebi compile` and look at the compiler erros for guidance along what works and doesn't work and why.
-5. Dig into the [`examples`](https://github.com/OpShin/hebi/tree/master/examples) to understand common patterns. Check out the [`prelude`](https://opshin.github.io/hebi/prelude.html) for understanding how the Script Context is structured and how complex datums are defined.
-6. Check out the [sample repository](https://github.com/OpShin/eopsin-example) to find a sample setup for developing your own contract.
+5. Dig into the [`examples`](https://github.com/OpShin/hebi/tree/main/examples) to understand common patterns. Check out the [`prelude`](https://hebi.opshin.dev/hebi/prelude.html) for understanding how the Script Context is structured and how complex datums are defined.
+6. Check out the [sample repository](https://github.com/OpShin/opshin-starter-kit) to find a sample setup for developing your own contract.
 
 
 In summary, a smart contract in hebi is defined by the function `validator` in your contract file.
@@ -109,20 +109,20 @@ and how to build transactions with the contract.
 ```python3
 from hebi.prelude import *
 
-@dataclass()
-class CancelDatum(PlutusData):
+@dataclass
+class WithdrawDatum(PlutusData):
     pubkeyhash: bytes
 
 
-def validator(datum: CancelDatum, redeemer: None, context: ScriptContext) -> None:
+def validator(datum: WithdrawDatum, redeemer: None, context: ScriptContext) -> None:
     assert datum.pubkeyhash in context.tx_info.signatories, "Required signature missing"
 ```
 
 All contracts written in hebi are 100% valid python.
 Minting policies expect only a redeemer and script context as argument.
-Check out the [Architecture guide](https://github.com/OpShin/hebi/blob/master/ARCHITECTURE.md#minting-policy---spending-validator-double-function)
+Check out the [Architecture guide](https://github.com/OpShin/hebi/blob/main/ARCHITECTURE.md#minting-policy---spending-validator-double-function)
 for details on how to write double functioning contracts.
-The [`examples`](https://github.com/OpShin/hebi/blob/master/examples) folder contains more examples.
+The [`examples`](https://github.com/OpShin/hebi/blob/main/examples) folder contains more examples.
 Also check out the [opshin-pioneer-program](
 https://github.com/OpShin/opshin-pioneer-program)
 and [opshin-starter-kit](

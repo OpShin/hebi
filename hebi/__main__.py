@@ -138,11 +138,7 @@ def main():
         raise SyntaxError(
             f"""\
 {overwrite_syntaxerror}{c.orig_err.__class__.__name__}: {c.orig_err}
-<<<<<<<< HEAD:hebi/__main__.py
 Note that hebi errors may be overly restrictive as they aim to prevent code with unintended consequences.
-========
-Note that opshin errors may be overly restrictive as they aim to prevent code with unintended consequences.
->>>>>>>> 0.11.0:opshin/__main__.py
 """,
             (
                 args.input_file,

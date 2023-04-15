@@ -88,7 +88,6 @@ from .rewrite.rewrite_duplicate_assignment import RewriteDuplicateAssignment
 from .rewrite.rewrite_zero_ary import RewriteZeroAry
 from .optimize.optimize_remove_pass import OptimizeRemovePass
 from .optimize.optimize_remove_deadvars import OptimizeRemoveDeadvars
-from .optimize.optimize_varlen import OptimizeVarlen
 from .type_inference import *
 from .util import CompilingNodeTransformer, PowImpl
 from .typed_ast import transform_ext_params_map, transform_output_map, RawPlutoExpr
@@ -258,10 +257,7 @@ class UPLCCompiler(CompilingNodeTransformer):
         # TODO can use more sophisiticated procedure here i.e. functions marked by comment
         main_fun: typing.Optional[InstanceType] = None
         for s in node.body:
-            if (
-                isinstance(s, FunctionDef)
-                and s.orig_name == self.validator_function_name
-            ):
+            if isinstance(s, FunctionDef) and s.name == self.validator_function_name:
                 main_fun = s
         assert (
             main_fun is not None
@@ -273,9 +269,9 @@ class UPLCCompiler(CompilingNodeTransformer):
 
         # check if this is a contract written to double function
         enable_double_func_mint_spend = False
-        if len(main_fun_typ.typ.argtyps) &gt;= 3 and self.force_three_params:
+        if len(main_fun_typ.argtyps) &gt;= 3 and self.force_three_params:
             # check if is possible
-            second_last_arg = main_fun_typ.typ.argtyps[-2]
+            second_last_arg = main_fun_typ.argtyps[-2]
             assert isinstance(
                 second_last_arg, InstanceType
             ), &#34;Can not pass Class into validator&#34;
@@ -300,20 +296,24 @@ class UPLCCompiler(CompilingNodeTransformer):
         body = node.body + [
             TypedReturn(
                 value=Name(
-                    id=self.validator_function_name, typ=main_fun_typ, ctx=Load()
+                    id=self.validator_function_name,
+                    typ=InstanceType(main_fun_typ),
+                    ctx=Load(),
                 ),
-                typ=main_fun_typ.typ.rettyp,
+                typ=InstanceType(main_fun_typ),
             )
         ]
 
         validator = plt.Lambda(
-            [f&#34;p{i}&#34; for i, _ in enumerate(main_fun_typ.typ.argtyps)],
-            transform_output_map(main_fun_typ.typ.rettyp)(
+            [f&#34;p{i}&#34; for i, _ in enumerate(main_fun_typ.argtyps)],
+            transform_output_map(main_fun_typ.rettyp)(
                 plt.Let(
                     [
                         (
                             &#34;val&#34;,
-                            self.visit_sequence(body)(plt.Unit()),
+                            self.visit_sequence(body)(
+                                plt.ConstrData(plt.Integer(0), plt.EmptyDataList())
+                            ),
                         ),
                     ],
                     plt.Apply(
@@ -321,7 +321,7 @@ class UPLCCompiler(CompilingNodeTransformer):
                         plt.Var(&#34;val&#34;),
                         *[
                             transform_ext_params_map(a)(plt.Var(f&#34;p{i}&#34;))
-                            for i, a in enumerate(main_fun_typ.typ.argtyps)
+                            for i, a in enumerate(main_fun_typ.argtyps)
                         ],
                     ),
                 ),
@@ -329,7 +329,7 @@ class UPLCCompiler(CompilingNodeTransformer):
         )
         if enable_double_func_mint_spend:
             validator = wrap_validator_double_function(
-                validator, pass_through=len(main_fun_typ.typ.argtyps) - 3
+                validator, pass_through=len(main_fun_typ.argtyps) - 3
             )
         elif self.force_three_params:
             # Error if the double function is enforced but not possible
@@ -431,7 +431,11 @@ class UPLCCompiler(CompilingNodeTransformer):
     ) -&gt; typing.Callable[[plt.AST], plt.AST]:
         body = node.body.copy()
         # defaults to returning None if there is no return statement
-        compiled_body = self.visit_sequence(body)(plt.Unit())
+        if node.typ.typ.rettyp.typ == AnyType():
+            ret_val = plt.ConstrData(plt.Integer(0), plt.EmptyDataList())
+        else:
+            ret_val = plt.Unit()
+        compiled_body = self.visit_sequence(body)(ret_val)
         return lambda x: plt.Let(
             [
                 (
@@ -455,7 +459,7 @@ class UPLCCompiler(CompilingNodeTransformer):
     def visit_Return(self, node: TypedReturn) -&gt; typing.Callable[[plt.AST], plt.AST]:
         # Throw away the term we were passed, this is going to be the last!
         compiled_return = self.visit(node.value)
-        if isinstance(node.typ.typ.rettyp.typ, AnyType):
+        if isinstance(node.typ.typ, AnyType):
             # if the function returns generic data, wrap the function return value
             compiled_return = transform_output_map(node.value.typ)(compiled_return)
         return lambda _: compiled_return
@@ -992,10 +996,7 @@ def compile(
         # TODO can use more sophisiticated procedure here i.e. functions marked by comment
         main_fun: typing.Optional[InstanceType] = None
         for s in node.body:
-            if (
-                isinstance(s, FunctionDef)
-                and s.orig_name == self.validator_function_name
-            ):
+            if isinstance(s, FunctionDef) and s.name == self.validator_function_name:
                 main_fun = s
         assert (
             main_fun is not None
@@ -1007,9 +1008,9 @@ def compile(
 
         # check if this is a contract written to double function
         enable_double_func_mint_spend = False
-        if len(main_fun_typ.typ.argtyps) &gt;= 3 and self.force_three_params:
+        if len(main_fun_typ.argtyps) &gt;= 3 and self.force_three_params:
             # check if is possible
-            second_last_arg = main_fun_typ.typ.argtyps[-2]
+            second_last_arg = main_fun_typ.argtyps[-2]
             assert isinstance(
                 second_last_arg, InstanceType
             ), &#34;Can not pass Class into validator&#34;
@@ -1034,20 +1035,24 @@ def compile(
         body = node.body + [
             TypedReturn(
                 value=Name(
-                    id=self.validator_function_name, typ=main_fun_typ, ctx=Load()
+                    id=self.validator_function_name,
+                    typ=InstanceType(main_fun_typ),
+                    ctx=Load(),
                 ),
-                typ=main_fun_typ.typ.rettyp,
+                typ=InstanceType(main_fun_typ),
             )
         ]
 
         validator = plt.Lambda(
-            [f&#34;p{i}&#34; for i, _ in enumerate(main_fun_typ.typ.argtyps)],
-            transform_output_map(main_fun_typ.typ.rettyp)(
+            [f&#34;p{i}&#34; for i, _ in enumerate(main_fun_typ.argtyps)],
+            transform_output_map(main_fun_typ.rettyp)(
                 plt.Let(
                     [
                         (
                             &#34;val&#34;,
-                            self.visit_sequence(body)(plt.Unit()),
+                            self.visit_sequence(body)(
+                                plt.ConstrData(plt.Integer(0), plt.EmptyDataList())
+                            ),
                         ),
                     ],
                     plt.Apply(
@@ -1055,7 +1060,7 @@ def compile(
                         plt.Var(&#34;val&#34;),
                         *[
                             transform_ext_params_map(a)(plt.Var(f&#34;p{i}&#34;))
-                            for i, a in enumerate(main_fun_typ.typ.argtyps)
+                            for i, a in enumerate(main_fun_typ.argtyps)
                         ],
                     ),
                 ),
@@ -1063,7 +1068,7 @@ def compile(
         )
         if enable_double_func_mint_spend:
             validator = wrap_validator_double_function(
-                validator, pass_through=len(main_fun_typ.typ.argtyps) - 3
+                validator, pass_through=len(main_fun_typ.argtyps) - 3
             )
         elif self.force_three_params:
             # Error if the double function is enforced but not possible
@@ -1165,7 +1170,11 @@ def compile(
     ) -&gt; typing.Callable[[plt.AST], plt.AST]:
         body = node.body.copy()
         # defaults to returning None if there is no return statement
-        compiled_body = self.visit_sequence(body)(plt.Unit())
+        if node.typ.typ.rettyp.typ == AnyType():
+            ret_val = plt.ConstrData(plt.Integer(0), plt.EmptyDataList())
+        else:
+            ret_val = plt.Unit()
+        compiled_body = self.visit_sequence(body)(ret_val)
         return lambda x: plt.Let(
             [
                 (
@@ -1189,7 +1198,7 @@ def compile(
     def visit_Return(self, node: TypedReturn) -&gt; typing.Callable[[plt.AST], plt.AST]:
         # Throw away the term we were passed, this is going to be the last!
         compiled_return = self.visit(node.value)
-        if isinstance(node.typ.typ.rettyp.typ, AnyType):
+        if isinstance(node.typ.typ, AnyType):
             # if the function returns generic data, wrap the function return value
             compiled_return = transform_output_map(node.value.typ)(compiled_return)
         return lambda _: compiled_return
@@ -1812,7 +1821,11 @@ def compile(
 ) -&gt; typing.Callable[[plt.AST], plt.AST]:
     body = node.body.copy()
     # defaults to returning None if there is no return statement
-    compiled_body = self.visit_sequence(body)(plt.Unit())
+    if node.typ.typ.rettyp.typ == AnyType():
+        ret_val = plt.ConstrData(plt.Integer(0), plt.EmptyDataList())
+    else:
+        ret_val = plt.Unit()
+    compiled_body = self.visit_sequence(body)(ret_val)
     return lambda x: plt.Let(
         [
             (
@@ -1941,10 +1954,7 @@ def compile(
     # TODO can use more sophisiticated procedure here i.e. functions marked by comment
     main_fun: typing.Optional[InstanceType] = None
     for s in node.body:
-        if (
-            isinstance(s, FunctionDef)
-            and s.orig_name == self.validator_function_name
-        ):
+        if isinstance(s, FunctionDef) and s.name == self.validator_function_name:
             main_fun = s
     assert (
         main_fun is not None
@@ -1956,9 +1966,9 @@ def compile(
 
     # check if this is a contract written to double function
     enable_double_func_mint_spend = False
-    if len(main_fun_typ.typ.argtyps) &gt;= 3 and self.force_three_params:
+    if len(main_fun_typ.argtyps) &gt;= 3 and self.force_three_params:
         # check if is possible
-        second_last_arg = main_fun_typ.typ.argtyps[-2]
+        second_last_arg = main_fun_typ.argtyps[-2]
         assert isinstance(
             second_last_arg, InstanceType
         ), &#34;Can not pass Class into validator&#34;
@@ -1983,20 +1993,24 @@ def compile(
     body = node.body + [
         TypedReturn(
             value=Name(
-                id=self.validator_function_name, typ=main_fun_typ, ctx=Load()
+                id=self.validator_function_name,
+                typ=InstanceType(main_fun_typ),
+                ctx=Load(),
             ),
-            typ=main_fun_typ.typ.rettyp,
+            typ=InstanceType(main_fun_typ),
         )
     ]
 
     validator = plt.Lambda(
-        [f&#34;p{i}&#34; for i, _ in enumerate(main_fun_typ.typ.argtyps)],
-        transform_output_map(main_fun_typ.typ.rettyp)(
+        [f&#34;p{i}&#34; for i, _ in enumerate(main_fun_typ.argtyps)],
+        transform_output_map(main_fun_typ.rettyp)(
             plt.Let(
                 [
                     (
                         &#34;val&#34;,
-                        self.visit_sequence(body)(plt.Unit()),
+                        self.visit_sequence(body)(
+                            plt.ConstrData(plt.Integer(0), plt.EmptyDataList())
+                        ),
                     ),
                 ],
                 plt.Apply(
@@ -2004,7 +2018,7 @@ def compile(
                     plt.Var(&#34;val&#34;),
                     *[
                         transform_ext_params_map(a)(plt.Var(f&#34;p{i}&#34;))
-                        for i, a in enumerate(main_fun_typ.typ.argtyps)
+                        for i, a in enumerate(main_fun_typ.argtyps)
                     ],
                 ),
             ),
@@ -2012,7 +2026,7 @@ def compile(
     )
     if enable_double_func_mint_spend:
         validator = wrap_validator_double_function(
-            validator, pass_through=len(main_fun_typ.typ.argtyps) - 3
+            validator, pass_through=len(main_fun_typ.argtyps) - 3
         )
     elif self.force_three_params:
         # Error if the double function is enforced but not possible
@@ -2093,7 +2107,7 @@ def compile(
 <pre><code class="python">def visit_Return(self, node: TypedReturn) -&gt; typing.Callable[[plt.AST], plt.AST]:
     # Throw away the term we were passed, this is going to be the last!
     compiled_return = self.visit(node.value)
-    if isinstance(node.typ.typ.rettyp.typ, AnyType):
+    if isinstance(node.typ.typ, AnyType):
         # if the function returns generic data, wrap the function return value
         compiled_return = transform_output_map(node.value.typ)(compiled_return)
     return lambda _: compiled_return</code></pre>

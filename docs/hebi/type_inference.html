@@ -72,7 +72,7 @@ fill="currentColor" class="octo-body"></path>
 import ast
 
 from .typed_ast import *
-from .util import PythonBuiltInTypes, CompilingNodeTransformer
+from .util import PythonBuiltInTypes, CompilingNodeTransformer, ReturnExtractor
 
 # from frozendict import frozendict
 
@@ -112,21 +112,12 @@ INITIAL_SCOPE.update(
 )
 
 
-class ReturnExtractor(NodeVisitor):
-    &#34;&#34;&#34;Utility to find all Return statements in an AST subtree&#34;&#34;&#34;
-
-    def __init__(self):
-        self.returns = []
-
-    def visit_Return(self, node: Return) -&gt; None:
-        self.returns.append(node)
-
-
 class AggressiveTypeInferencer(CompilingNodeTransformer):
     step = &#34;Static Type Inference&#34;
 
     # A stack of dictionaries for storing scoped knowledge of variable types
     scopes = [INITIAL_SCOPE]
+    current_ret_type = []
 
     # Obtain the type of a variable name in the current scope
     def variable_type(self, name: str) -&gt; Type:
@@ -420,11 +411,13 @@ class AggressiveTypeInferencer(CompilingNodeTransformer):
     def visit_FunctionDef(self, node: FunctionDef) -&gt; TypedFunctionDef:
         tfd = copy(node)
         assert not node.decorator_list, &#34;Functions may not have decorators&#34;
+        rettyp = InstanceType(self.type_from_annotation(tfd.returns))
         self.enter_scope()
+        self.current_ret_type.append(rettyp)
         tfd.args = self.visit(node.args)
         functyp = FunctionType(
             [t.typ for t in tfd.args.args],
-            InstanceType(self.type_from_annotation(tfd.returns)),
+            rettyp,
         )
         tfd.typ = InstanceType(functyp)
         # We need the function type inside for recursion
@@ -437,13 +430,14 @@ class AggressiveTypeInferencer(CompilingNodeTransformer):
         # Check that return type and annotated return type match
         if not rets:
             assert (
-                functyp.rettyp == NoneInstanceType
+                functyp.rettyp &gt;= NoneInstanceType
             ), f&#34;Function &#39;{node.name}&#39; has no return statement but is supposed to return not-None value&#34;
         else:
             assert all(
                 functyp.rettyp &gt;= r.typ for r in rets
             ), f&#34;Function &#39;{node.name}&#39; annotated return type does not match actual return type&#34;
         self.exit_scope()
+        self.current_ret_type.pop(-1)
         # We need the function type outside for usage
         self.set_variable_type(node.name, tfd.typ)
         return tfd
@@ -611,7 +605,9 @@ class AggressiveTypeInferencer(CompilingNodeTransformer):
     def visit_Return(self, node: Return) -&gt; TypedReturn:
         tp = copy(node)
         tp.value = self.visit(node.value)
-        tp.typ = tp.value.typ
+        tp.typ = (
+            tp.value.typ if not self.current_ret_type else self.current_ret_type[-1]
+        )
         return tp
 
     def visit_Attribute(self, node: Attribute) -&gt; TypedAttribute:
@@ -848,6 +844,7 @@ just a single node.</p>
 
     # A stack of dictionaries for storing scoped knowledge of variable types
     scopes = [INITIAL_SCOPE]
+    current_ret_type = []
 
     # Obtain the type of a variable name in the current scope
     def variable_type(self, name: str) -&gt; Type:
@@ -1141,11 +1138,13 @@ just a single node.</p>
     def visit_FunctionDef(self, node: FunctionDef) -&gt; TypedFunctionDef:
         tfd = copy(node)
         assert not node.decorator_list, &#34;Functions may not have decorators&#34;
+        rettyp = InstanceType(self.type_from_annotation(tfd.returns))
         self.enter_scope()
+        self.current_ret_type.append(rettyp)
         tfd.args = self.visit(node.args)
         functyp = FunctionType(
             [t.typ for t in tfd.args.args],
-            InstanceType(self.type_from_annotation(tfd.returns)),
+            rettyp,
         )
         tfd.typ = InstanceType(functyp)
         # We need the function type inside for recursion
@@ -1158,13 +1157,14 @@ just a single node.</p>
         # Check that return type and annotated return type match
         if not rets:
             assert (
-                functyp.rettyp == NoneInstanceType
+                functyp.rettyp &gt;= NoneInstanceType
             ), f&#34;Function &#39;{node.name}&#39; has no return statement but is supposed to return not-None value&#34;
         else:
             assert all(
                 functyp.rettyp &gt;= r.typ for r in rets
             ), f&#34;Function &#39;{node.name}&#39; annotated return type does not match actual return type&#34;
         self.exit_scope()
+        self.current_ret_type.pop(-1)
         # We need the function type outside for usage
         self.set_variable_type(node.name, tfd.typ)
         return tfd
@@ -1332,7 +1332,9 @@ just a single node.</p>
     def visit_Return(self, node: Return) -&gt; TypedReturn:
         tp = copy(node)
         tp.value = self.visit(node.value)
-        tp.typ = tp.value.typ
+        tp.typ = (
+            tp.value.typ if not self.current_ret_type else self.current_ret_type[-1]
+        )
         return tp
 
     def visit_Attribute(self, node: Attribute) -&gt; TypedAttribute:
@@ -1430,6 +1432,10 @@ just a single node.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="hebi.type_inference.AggressiveTypeInferencer.current_ret_type"><code class="name">var <span class="ident">current_ret_type</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="hebi.type_inference.AggressiveTypeInferencer.scopes"><code class="name">var <span class="ident">scopes</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -1928,11 +1934,13 @@ just a single node.</p>
 <pre><code class="python">def visit_FunctionDef(self, node: FunctionDef) -&gt; TypedFunctionDef:
     tfd = copy(node)
     assert not node.decorator_list, &#34;Functions may not have decorators&#34;
+    rettyp = InstanceType(self.type_from_annotation(tfd.returns))
     self.enter_scope()
+    self.current_ret_type.append(rettyp)
     tfd.args = self.visit(node.args)
     functyp = FunctionType(
         [t.typ for t in tfd.args.args],
-        InstanceType(self.type_from_annotation(tfd.returns)),
+        rettyp,
     )
     tfd.typ = InstanceType(functyp)
     # We need the function type inside for recursion
@@ -1945,13 +1953,14 @@ just a single node.</p>
     # Check that return type and annotated return type match
     if not rets:
         assert (
-            functyp.rettyp == NoneInstanceType
+            functyp.rettyp &gt;= NoneInstanceType
         ), f&#34;Function &#39;{node.name}&#39; has no return statement but is supposed to return not-None value&#34;
     else:
         assert all(
             functyp.rettyp &gt;= r.typ for r in rets
         ), f&#34;Function &#39;{node.name}&#39; annotated return type does not match actual return type&#34;
     self.exit_scope()
+    self.current_ret_type.pop(-1)
     # We need the function type outside for usage
     self.set_variable_type(node.name, tfd.typ)
     return tfd</code></pre>
@@ -2158,7 +2167,9 @@ just a single node.</p>
 <pre><code class="python">def visit_Return(self, node: Return) -&gt; TypedReturn:
     tp = copy(node)
     tp.value = self.visit(node.value)
-    tp.typ = tp.value.typ
+    tp.typ = (
+        tp.value.typ if not self.current_ret_type else self.current_ret_type[-1]
+    )
     return tp</code></pre>
 </details>
 </dd>
@@ -2650,45 +2661,6 @@ def extract(cls, c: ClassDef, type_inferencer: AggressiveTypeInferencer) -&gt; R
 </dd>
 </dl>
 </dd>
-<dt id="hebi.type_inference.ReturnExtractor"><code class="flex name class">
-<span>class <span class="ident">ReturnExtractor</span></span>
-</code></dt>
-<dd>
-<div class="desc"><p>Utility to find all Return statements in an AST subtree</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class ReturnExtractor(NodeVisitor):
-    &#34;&#34;&#34;Utility to find all Return statements in an AST subtree&#34;&#34;&#34;
-
-    def __init__(self):
-        self.returns = []
-
-    def visit_Return(self, node: Return) -&gt; None:
-        self.returns.append(node)</code></pre>
-</details>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>ast.NodeVisitor</li>
-</ul>
-<h3>Methods</h3>
-<dl>
-<dt id="hebi.type_inference.ReturnExtractor.visit_Return"><code class="name flex">
-<span>def <span class="ident">visit_Return</span></span>(<span>self, node: _ast.Return) ‑> None</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def visit_Return(self, node: Return) -&gt; None:
-    self.returns.append(node)</code></pre>
-</details>
-</dd>
-</dl>
-</dd>
 </dl>
 </section>
 </article>
@@ -2766,6 +2738,7 @@ setTimeout(() => input.focus(), 100);
 <li>
 <h4><code><a title="hebi.type_inference.AggressiveTypeInferencer" href="#hebi.type_inference.AggressiveTypeInferencer">AggressiveTypeInferencer</a></code></h4>
 <ul class="">
+<li><code><a title="hebi.type_inference.AggressiveTypeInferencer.current_ret_type" href="#hebi.type_inference.AggressiveTypeInferencer.current_ret_type">current_ret_type</a></code></li>
 <li><code><a title="hebi.type_inference.AggressiveTypeInferencer.enter_scope" href="#hebi.type_inference.AggressiveTypeInferencer.enter_scope">enter_scope</a></code></li>
 <li><code><a title="hebi.type_inference.AggressiveTypeInferencer.exit_scope" href="#hebi.type_inference.AggressiveTypeInferencer.exit_scope">exit_scope</a></code></li>
 <li><code><a title="hebi.type_inference.AggressiveTypeInferencer.generic_visit" href="#hebi.type_inference.AggressiveTypeInferencer.generic_visit">generic_visit</a></code></li>
@@ -2820,12 +2793,6 @@ setTimeout(() => input.focus(), 100);
 <li><code><a title="hebi.type_inference.RecordReader.visit_ClassDef" href="#hebi.type_inference.RecordReader.visit_ClassDef">visit_ClassDef</a></code></li>
 <li><code><a title="hebi.type_inference.RecordReader.visit_Expr" href="#hebi.type_inference.RecordReader.visit_Expr">visit_Expr</a></code></li>
 <li><code><a title="hebi.type_inference.RecordReader.visit_Pass" href="#hebi.type_inference.RecordReader.visit_Pass">visit_Pass</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="hebi.type_inference.ReturnExtractor" href="#hebi.type_inference.ReturnExtractor">ReturnExtractor</a></code></h4>
-<ul class="">
-<li><code><a title="hebi.type_inference.ReturnExtractor.visit_Return" href="#hebi.type_inference.ReturnExtractor.visit_Return">visit_Return</a></code></li>
 </ul>
 </li>
 </ul>

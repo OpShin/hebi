@@ -100,7 +100,7 @@ class MiscTest(unittest.TestCase):
         for d in [uplc.PlutusInteger(20), uplc.PlutusInteger(22), uplc.BuiltinUnit()]:
             f = uplc.Apply(f, d)
         ret = uplc_eval(f)
-        self.assertEqual(ret, uplc.BuiltinUnit())
+        self.assertEqual(ret, uplc.PlutusConstr(0, []))
 
     def test_assert_sum_contract_fail(self):
         input_file = &#34;examples/smart_contracts/assert_sum.py&#34;
@@ -265,7 +265,7 @@ class MiscTest(unittest.TestCase):
         ]:
             f = uplc.Apply(f, d)
         ret = uplc_eval(f)
-        self.assertEqual(ret, uplc.BuiltinUnit())
+        self.assertEqual(ret, uplc.PlutusConstr(0, []))
 
     def test_gift_contract_fail(self):
         input_file = &#34;examples/smart_contracts/gift.py&#34;
@@ -843,7 +843,7 @@ def validator(x: None) -&gt; None:
 
     def test_return_anything(self):
         source_code = &#34;&#34;&#34;
-from opshin.prelude import *
+from hebi.prelude import *
 
 def validator() -&gt; Anything:
     return b&#34;&#34;
@@ -855,7 +855,7 @@ def validator() -&gt; Anything:
 
     def test_no_return_annotation(self):
         source_code = &#34;&#34;&#34;
-from opshin.prelude import *
+from hebi.prelude import *
 
 def validator():
     return b&#34;&#34;
@@ -867,7 +867,7 @@ def validator():
 
     def test_no_parameter_annotation(self):
         source_code = &#34;&#34;&#34;
-from opshin.prelude import *
+from hebi.prelude import *
 
 def validator(a) -&gt; bytes:
     b: bytes = a
@@ -877,34 +877,6 @@ def validator(a) -&gt; bytes:
         code = compiler.compile(ast).compile()
         res = uplc_eval(uplc.Apply(code, uplc.PlutusByteString(b&#34;&#34;)))
         self.assertEqual(res, uplc.PlutusByteString(b&#34;&#34;))
-
-    @given(xs=st.dictionaries(st.integers(), st.binary()))
-    def test_dict_items_values_deconstr(self, xs):
-        # asserts that deconstruction of parameters works for for loops too
-        source_code = &#34;&#34;&#34;
-def validator(xs: Dict[int, bytes]) -&gt; bytes:
-    sum_values = b&#34;&#34;
-    for _, x in xs.items():
-        sum_values += x
-    return sum_values
-&#34;&#34;&#34;
-        ast = compiler.parse(source_code)
-        code = compiler.compile(ast)
-        code = code.compile()
-        f = code.term
-        # UPLC lambdas may only take one argument at a time, so we evaluate by repeatedly applying
-        for d in [
-            uplc.PlutusMap(
-                {uplc.PlutusInteger(k): uplc.PlutusByteString(v) for k, v in xs.items()}
-            )
-        ]:
-            f = uplc.Apply(f, d)
-        ret = uplc_eval(f).value
-        self.assertEqual(
-            ret,
-            b&#34;&#34;.join(xs.values()),
-            &#34;for loop deconstruction did not behave as expected&#34;,
-        )
 
     def test_nested_deconstruction(self):
         source_code = &#34;&#34;&#34;
@@ -925,48 +897,34 @@ def validator(xs) -&gt; int:
             &#34;for loop deconstruction did not behave as expected&#34;,
         )
 
-    @given(
-        xs=st.dictionaries(
-            st.binary(),
-            st.dictionaries(st.binary(), st.integers(), max_size=3),
-            max_size=5,
-        )
-    )
-    def test_dict_items_values_deconstr(self, xs):
-        # nested deconstruction with a Value-like object
+    def test_different_return_types_anything(self):
         source_code = &#34;&#34;&#34;
-def validator(xs: Dict[bytes, Dict[bytes, int]]) -&gt; int:
-    sum_values = 0
-    for pid, tk_dict in xs.items():
-        for tk_name, tk_amount in tk_dict.items():
-            sum_values += tk_amount
-    return sum_values
+from hebi.prelude import *
+
+def validator(a: int) -&gt; Anything:
+    if a &gt; 0:
+        return b&#34;&#34;
+    else:
+        return 0
 &#34;&#34;&#34;
         ast = compiler.parse(source_code)
-        code = compiler.compile(ast)
-        code = code.compile()
-        f = code.term
-        # UPLC lambdas may only take one argument at a time, so we evaluate by repeatedly applying
-        for d in [
-            uplc.PlutusMap(
-                {
-                    uplc.PlutusByteString(k): uplc.PlutusMap(
-                        {
-                            uplc.PlutusByteString(k2): uplc.PlutusInteger(v2)
-                            for k2, v2 in v.items()
-                        }
-                    )
-                    for k, v in xs.items()
-                }
-            )
-        ]:
-            f = uplc.Apply(f, d)
-        ret = uplc_eval(f).value
-        self.assertEqual(
-            ret,
-            sum(v for pid, d in xs.items() for nam, v in d.items()),
-            &#34;for loop deconstruction did not behave as expected&#34;,
-        )</code></pre>
+        code = compiler.compile(ast).compile()
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusInteger(1)))
+        self.assertEqual(res, uplc.PlutusByteString(b&#34;&#34;))
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusInteger(-1)))
+        self.assertEqual(res, uplc.PlutusInteger(0))
+
+    def test_no_return_annotation_no_return(self):
+        source_code = &#34;&#34;&#34;
+from hebi.prelude import *
+
+def validator(a):
+    pass
+&#34;&#34;&#34;
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast).compile()
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusConstr(0, [])))
+        self.assertEqual(res, uplc.PlutusConstr(0, []))</code></pre>
 </details>
 </section>
 <section>
@@ -1047,7 +1005,7 @@ not have a method with the specified name.</p></div>
         for d in [uplc.PlutusInteger(20), uplc.PlutusInteger(22), uplc.BuiltinUnit()]:
             f = uplc.Apply(f, d)
         ret = uplc_eval(f)
-        self.assertEqual(ret, uplc.BuiltinUnit())
+        self.assertEqual(ret, uplc.PlutusConstr(0, []))
 
     def test_assert_sum_contract_fail(self):
         input_file = &#34;examples/smart_contracts/assert_sum.py&#34;
@@ -1212,7 +1170,7 @@ not have a method with the specified name.</p></div>
         ]:
             f = uplc.Apply(f, d)
         ret = uplc_eval(f)
-        self.assertEqual(ret, uplc.BuiltinUnit())
+        self.assertEqual(ret, uplc.PlutusConstr(0, []))
 
     def test_gift_contract_fail(self):
         input_file = &#34;examples/smart_contracts/gift.py&#34;
@@ -1790,7 +1748,7 @@ def validator(x: None) -&gt; None:
 
     def test_return_anything(self):
         source_code = &#34;&#34;&#34;
-from opshin.prelude import *
+from hebi.prelude import *
 
 def validator() -&gt; Anything:
     return b&#34;&#34;
@@ -1802,7 +1760,7 @@ def validator() -&gt; Anything:
 
     def test_no_return_annotation(self):
         source_code = &#34;&#34;&#34;
-from opshin.prelude import *
+from hebi.prelude import *
 
 def validator():
     return b&#34;&#34;
@@ -1814,7 +1772,7 @@ def validator():
 
     def test_no_parameter_annotation(self):
         source_code = &#34;&#34;&#34;
-from opshin.prelude import *
+from hebi.prelude import *
 
 def validator(a) -&gt; bytes:
     b: bytes = a
@@ -1824,34 +1782,6 @@ def validator(a) -&gt; bytes:
         code = compiler.compile(ast).compile()
         res = uplc_eval(uplc.Apply(code, uplc.PlutusByteString(b&#34;&#34;)))
         self.assertEqual(res, uplc.PlutusByteString(b&#34;&#34;))
-
-    @given(xs=st.dictionaries(st.integers(), st.binary()))
-    def test_dict_items_values_deconstr(self, xs):
-        # asserts that deconstruction of parameters works for for loops too
-        source_code = &#34;&#34;&#34;
-def validator(xs: Dict[int, bytes]) -&gt; bytes:
-    sum_values = b&#34;&#34;
-    for _, x in xs.items():
-        sum_values += x
-    return sum_values
-&#34;&#34;&#34;
-        ast = compiler.parse(source_code)
-        code = compiler.compile(ast)
-        code = code.compile()
-        f = code.term
-        # UPLC lambdas may only take one argument at a time, so we evaluate by repeatedly applying
-        for d in [
-            uplc.PlutusMap(
-                {uplc.PlutusInteger(k): uplc.PlutusByteString(v) for k, v in xs.items()}
-            )
-        ]:
-            f = uplc.Apply(f, d)
-        ret = uplc_eval(f).value
-        self.assertEqual(
-            ret,
-            b&#34;&#34;.join(xs.values()),
-            &#34;for loop deconstruction did not behave as expected&#34;,
-        )
 
     def test_nested_deconstruction(self):
         source_code = &#34;&#34;&#34;
@@ -1872,48 +1802,34 @@ def validator(xs) -&gt; int:
             &#34;for loop deconstruction did not behave as expected&#34;,
         )
 
-    @given(
-        xs=st.dictionaries(
-            st.binary(),
-            st.dictionaries(st.binary(), st.integers(), max_size=3),
-            max_size=5,
-        )
-    )
-    def test_dict_items_values_deconstr(self, xs):
-        # nested deconstruction with a Value-like object
+    def test_different_return_types_anything(self):
         source_code = &#34;&#34;&#34;
-def validator(xs: Dict[bytes, Dict[bytes, int]]) -&gt; int:
-    sum_values = 0
-    for pid, tk_dict in xs.items():
-        for tk_name, tk_amount in tk_dict.items():
-            sum_values += tk_amount
-    return sum_values
+from hebi.prelude import *
+
+def validator(a: int) -&gt; Anything:
+    if a &gt; 0:
+        return b&#34;&#34;
+    else:
+        return 0
 &#34;&#34;&#34;
         ast = compiler.parse(source_code)
-        code = compiler.compile(ast)
-        code = code.compile()
-        f = code.term
-        # UPLC lambdas may only take one argument at a time, so we evaluate by repeatedly applying
-        for d in [
-            uplc.PlutusMap(
-                {
-                    uplc.PlutusByteString(k): uplc.PlutusMap(
-                        {
-                            uplc.PlutusByteString(k2): uplc.PlutusInteger(v2)
-                            for k2, v2 in v.items()
-                        }
-                    )
-                    for k, v in xs.items()
-                }
-            )
-        ]:
-            f = uplc.Apply(f, d)
-        ret = uplc_eval(f).value
-        self.assertEqual(
-            ret,
-            sum(v for pid, d in xs.items() for nam, v in d.items()),
-            &#34;for loop deconstruction did not behave as expected&#34;,
-        )</code></pre>
+        code = compiler.compile(ast).compile()
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusInteger(1)))
+        self.assertEqual(res, uplc.PlutusByteString(b&#34;&#34;))
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusInteger(-1)))
+        self.assertEqual(res, uplc.PlutusInteger(0))
+
+    def test_no_return_annotation_no_return(self):
+        source_code = &#34;&#34;&#34;
+from hebi.prelude import *
+
+def validator(a):
+    pass
+&#34;&#34;&#34;
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast).compile()
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusConstr(0, [])))
+        self.assertEqual(res, uplc.PlutusConstr(0, []))</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -1974,7 +1890,7 @@ def validator(xs: Dict[bytes, Dict[bytes, int]]) -&gt; int:
     for d in [uplc.PlutusInteger(20), uplc.PlutusInteger(22), uplc.BuiltinUnit()]:
         f = uplc.Apply(f, d)
     ret = uplc_eval(f)
-    self.assertEqual(ret, uplc.BuiltinUnit())</code></pre>
+    self.assertEqual(ret, uplc.PlutusConstr(0, []))</code></pre>
 </details>
 </dd>
 <dt id="hebi.tests.test_misc.MiscTest.test_complex_datum_correct_vals"><code class="name flex">
@@ -2097,8 +2013,8 @@ def validator(xs: Dict[bytes, Dict[bytes, int]]) -&gt; int:
     self.assertTrue(failed, &#34;Machine did validate the content&#34;)</code></pre>
 </details>
 </dd>
-<dt id="hebi.tests.test_misc.MiscTest.test_dict_items_values_deconstr"><code class="name flex">
-<span>def <span class="ident">test_dict_items_values_deconstr</span></span>(<span>self) ‑> None</span>
+<dt id="hebi.tests.test_misc.MiscTest.test_different_return_types_anything"><code class="name flex">
+<span>def <span class="ident">test_different_return_types_anything</span></span>(<span>self)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -2106,48 +2022,22 @@ def validator(xs: Dict[bytes, Dict[bytes, int]]) -&gt; int:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">    @given(
-        xs=st.dictionaries(
-            st.binary(),
-            st.dictionaries(st.binary(), st.integers(), max_size=3),
-            max_size=5,
-        )
-    )
-    def test_dict_items_values_deconstr(self, xs):
-        # nested deconstruction with a Value-like object
+<pre><code class="python">    def test_different_return_types_anything(self):
         source_code = &#34;&#34;&#34;
-def validator(xs: Dict[bytes, Dict[bytes, int]]) -&gt; int:
-    sum_values = 0
-    for pid, tk_dict in xs.items():
-        for tk_name, tk_amount in tk_dict.items():
-            sum_values += tk_amount
-    return sum_values
+from hebi.prelude import *
+
+def validator(a: int) -&gt; Anything:
+    if a &gt; 0:
+        return b&#34;&#34;
+    else:
+        return 0
 &#34;&#34;&#34;
         ast = compiler.parse(source_code)
-        code = compiler.compile(ast)
-        code = code.compile()
-        f = code.term
-        # UPLC lambdas may only take one argument at a time, so we evaluate by repeatedly applying
-        for d in [
-            uplc.PlutusMap(
-                {
-                    uplc.PlutusByteString(k): uplc.PlutusMap(
-                        {
-                            uplc.PlutusByteString(k2): uplc.PlutusInteger(v2)
-                            for k2, v2 in v.items()
-                        }
-                    )
-                    for k, v in xs.items()
-                }
-            )
-        ]:
-            f = uplc.Apply(f, d)
-        ret = uplc_eval(f).value
-        self.assertEqual(
-            ret,
-            sum(v for pid, d in xs.items() for nam, v in d.items()),
-            &#34;for loop deconstruction did not behave as expected&#34;,
-        )</code></pre>
+        code = compiler.compile(ast).compile()
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusInteger(1)))
+        self.assertEqual(res, uplc.PlutusByteString(b&#34;&#34;))
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusInteger(-1)))
+        self.assertEqual(res, uplc.PlutusInteger(0))</code></pre>
 </details>
 </dd>
 <dt id="hebi.tests.test_misc.MiscTest.test_dual_use_compile"><code class="name flex">
@@ -2286,7 +2176,7 @@ def test_fib_rec(self, n):
     ]:
         f = uplc.Apply(f, d)
     ret = uplc_eval(f)
-    self.assertEqual(ret, uplc.BuiltinUnit())</code></pre>
+    self.assertEqual(ret, uplc.PlutusConstr(0, []))</code></pre>
 </details>
 </dd>
 <dt id="hebi.tests.test_misc.MiscTest.test_hello_world"><code class="name flex">
@@ -2513,7 +2403,7 @@ def validator(xs) -&gt; int:
 </summary>
 <pre><code class="python">    def test_no_parameter_annotation(self):
         source_code = &#34;&#34;&#34;
-from opshin.prelude import *
+from hebi.prelude import *
 
 def validator(a) -&gt; bytes:
     b: bytes = a
@@ -2560,7 +2450,7 @@ def validator(x: int) -&gt; int:
 </summary>
 <pre><code class="python">    def test_no_return_annotation(self):
         source_code = &#34;&#34;&#34;
-from opshin.prelude import *
+from hebi.prelude import *
 
 def validator():
     return b&#34;&#34;
@@ -2569,6 +2459,28 @@ def validator():
         code = compiler.compile(ast).compile()
         res = uplc_eval(uplc.Apply(code, uplc.PlutusConstr(0, [])))
         self.assertEqual(res, uplc.PlutusByteString(b&#34;&#34;))</code></pre>
+</details>
+</dd>
+<dt id="hebi.tests.test_misc.MiscTest.test_no_return_annotation_no_return"><code class="name flex">
+<span>def <span class="ident">test_no_return_annotation_no_return</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">    def test_no_return_annotation_no_return(self):
+        source_code = &#34;&#34;&#34;
+from hebi.prelude import *
+
+def validator(a):
+    pass
+&#34;&#34;&#34;
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast).compile()
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusConstr(0, [])))
+        self.assertEqual(res, uplc.PlutusConstr(0, []))</code></pre>
 </details>
 </dd>
 <dt id="hebi.tests.test_misc.MiscTest.test_opt_shared_var"><code class="name flex">
@@ -2734,7 +2646,7 @@ def validator(x: None) -&gt; bytes:
 </summary>
 <pre><code class="python">    def test_return_anything(self):
         source_code = &#34;&#34;&#34;
-from opshin.prelude import *
+from hebi.prelude import *
 
 def validator() -&gt; Anything:
     return b&#34;&#34;
@@ -3317,7 +3229,7 @@ setTimeout(() => input.focus(), 100);
 <li><code><a title="hebi.tests.test_misc.MiscTest.test_complex_datum_correct_vals" href="#hebi.tests.test_misc.MiscTest.test_complex_datum_correct_vals">test_complex_datum_correct_vals</a></code></li>
 <li><code><a title="hebi.tests.test_misc.MiscTest.test_datum_cast" href="#hebi.tests.test_misc.MiscTest.test_datum_cast">test_datum_cast</a></code></li>
 <li><code><a title="hebi.tests.test_misc.MiscTest.test_dict_datum" href="#hebi.tests.test_misc.MiscTest.test_dict_datum">test_dict_datum</a></code></li>
-<li><code><a title="hebi.tests.test_misc.MiscTest.test_dict_items_values_deconstr" href="#hebi.tests.test_misc.MiscTest.test_dict_items_values_deconstr">test_dict_items_values_deconstr</a></code></li>
+<li><code><a title="hebi.tests.test_misc.MiscTest.test_different_return_types_anything" href="#hebi.tests.test_misc.MiscTest.test_different_return_types_anything">test_different_return_types_anything</a></code></li>
 <li><code><a title="hebi.tests.test_misc.MiscTest.test_dual_use_compile" href="#hebi.tests.test_misc.MiscTest.test_dual_use_compile">test_dual_use_compile</a></code></li>
 <li><code><a title="hebi.tests.test_misc.MiscTest.test_fib_rec" href="#hebi.tests.test_misc.MiscTest.test_fib_rec">test_fib_rec</a></code></li>
 <li><code><a title="hebi.tests.test_misc.MiscTest.test_gift_contract_fail" href="#hebi.tests.test_misc.MiscTest.test_gift_contract_fail">test_gift_contract_fail</a></code></li>
@@ -3333,6 +3245,7 @@ setTimeout(() => input.focus(), 100);
 <li><code><a title="hebi.tests.test_misc.MiscTest.test_no_parameter_annotation" href="#hebi.tests.test_misc.MiscTest.test_no_parameter_annotation">test_no_parameter_annotation</a></code></li>
 <li><code><a title="hebi.tests.test_misc.MiscTest.test_no_reassign" href="#hebi.tests.test_misc.MiscTest.test_no_reassign">test_no_reassign</a></code></li>
 <li><code><a title="hebi.tests.test_misc.MiscTest.test_no_return_annotation" href="#hebi.tests.test_misc.MiscTest.test_no_return_annotation">test_no_return_annotation</a></code></li>
+<li><code><a title="hebi.tests.test_misc.MiscTest.test_no_return_annotation_no_return" href="#hebi.tests.test_misc.MiscTest.test_no_return_annotation_no_return">test_no_return_annotation_no_return</a></code></li>
 <li><code><a title="hebi.tests.test_misc.MiscTest.test_opt_shared_var" href="#hebi.tests.test_misc.MiscTest.test_opt_shared_var">test_opt_shared_var</a></code></li>
 <li><code><a title="hebi.tests.test_misc.MiscTest.test_overopt_removedeadvar" href="#hebi.tests.test_misc.MiscTest.test_overopt_removedeadvar">test_overopt_removedeadvar</a></code></li>
 <li><code><a title="hebi.tests.test_misc.MiscTest.test_parameterized_compile" href="#hebi.tests.test_misc.MiscTest.test_parameterized_compile">test_parameterized_compile</a></code></li>

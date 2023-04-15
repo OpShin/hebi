@@ -184,9 +184,7 @@ def validator(x: Dict[int, bytes]) -&gt; List[bytes]:
         # this tests that errors that are caused by assignments are actually triggered at the time of assigning
         source_code = &#34;&#34;&#34;
 def validator(xs: Dict[int, bytes]) -&gt; int:
-    sum_keys = 0
-    for x in xs.items():
-        sum_keys += x[0]
+    sum_keys = sum([x[0] for x in xs.items()])
     return sum_keys
 &#34;&#34;&#34;
         ast = compiler.parse(source_code)
@@ -203,14 +201,12 @@ def validator(xs: Dict[int, bytes]) -&gt; int:
         ret = uplc_eval(f).value
         self.assertEqual(ret, sum(xs.keys()), &#34;dict.items returned wrong value&#34;)
 
-    @given(xs=st.dictionaries(st.integers(), st.binary()))
+    @given(xs=st.dictionaries(st.binary(), st.integers()))
     def test_dict_items_values_sum(self, xs):
         # this tests that errors that are caused by assignments are actually triggered at the time of assigning
         source_code = &#34;&#34;&#34;
-def validator(xs: Dict[int, bytes]) -&gt; bytes:
-    sum_values = b&#34;&#34;
-    for x in xs.items():
-        sum_values += x[1]
+def validator(xs: Dict[bytes, int]) -&gt; int:
+    sum_values = sum([x[1] for x in xs.items()])
     return sum_values
 &#34;&#34;&#34;
         ast = compiler.parse(source_code)
@@ -220,12 +216,12 @@ def validator(xs: Dict[int, bytes]) -&gt; bytes:
         # UPLC lambdas may only take one argument at a time, so we evaluate by repeatedly applying
         for d in [
             uplc.PlutusMap(
-                {uplc.PlutusInteger(k): uplc.PlutusByteString(v) for k, v in xs.items()}
+                {uplc.PlutusByteString(k): uplc.PlutusInteger(v) for k, v in xs.items()}
             )
         ]:
             f = uplc.Apply(f, d)
         ret = uplc_eval(f).value
-        self.assertEqual(ret, b&#34;&#34;.join(xs.values()), &#34;dict.items returned wrong value&#34;)
+        self.assertEqual(ret, sum(xs.values()), &#34;dict.items returned wrong value&#34;)
 
     @given(xs=st.text())
     def test_str_encode(self, xs):
@@ -330,7 +326,9 @@ def validator(x: None) -&gt; None:
         for d in [uplc.BuiltinUnit()]:
             f = uplc.Apply(f, d)
         ret = uplc_eval(f)
-        self.assertEqual(ret, uplc.BuiltinUnit(), &#34;literal None returned wrong value&#34;)
+        self.assertEqual(
+            ret, uplc.PlutusConstr(0, []), &#34;literal None returned wrong value&#34;
+        )
 
     @given(st.booleans())
     def test_constant_bool(self, x: bool):
@@ -502,9 +500,7 @@ def validator(x: Dict[int, bytes]) -&gt; List[bytes]:
         # this tests that errors that are caused by assignments are actually triggered at the time of assigning
         source_code = &#34;&#34;&#34;
 def validator(xs: Dict[int, bytes]) -&gt; int:
-    sum_keys = 0
-    for x in xs.items():
-        sum_keys += x[0]
+    sum_keys = sum([x[0] for x in xs.items()])
     return sum_keys
 &#34;&#34;&#34;
         ast = compiler.parse(source_code)
@@ -521,14 +517,12 @@ def validator(xs: Dict[int, bytes]) -&gt; int:
         ret = uplc_eval(f).value
         self.assertEqual(ret, sum(xs.keys()), &#34;dict.items returned wrong value&#34;)
 
-    @given(xs=st.dictionaries(st.integers(), st.binary()))
+    @given(xs=st.dictionaries(st.binary(), st.integers()))
     def test_dict_items_values_sum(self, xs):
         # this tests that errors that are caused by assignments are actually triggered at the time of assigning
         source_code = &#34;&#34;&#34;
-def validator(xs: Dict[int, bytes]) -&gt; bytes:
-    sum_values = b&#34;&#34;
-    for x in xs.items():
-        sum_values += x[1]
+def validator(xs: Dict[bytes, int]) -&gt; int:
+    sum_values = sum([x[1] for x in xs.items()])
     return sum_values
 &#34;&#34;&#34;
         ast = compiler.parse(source_code)
@@ -538,12 +532,12 @@ def validator(xs: Dict[int, bytes]) -&gt; bytes:
         # UPLC lambdas may only take one argument at a time, so we evaluate by repeatedly applying
         for d in [
             uplc.PlutusMap(
-                {uplc.PlutusInteger(k): uplc.PlutusByteString(v) for k, v in xs.items()}
+                {uplc.PlutusByteString(k): uplc.PlutusInteger(v) for k, v in xs.items()}
             )
         ]:
             f = uplc.Apply(f, d)
         ret = uplc_eval(f).value
-        self.assertEqual(ret, b&#34;&#34;.join(xs.values()), &#34;dict.items returned wrong value&#34;)
+        self.assertEqual(ret, sum(xs.values()), &#34;dict.items returned wrong value&#34;)
 
     @given(xs=st.text())
     def test_str_encode(self, xs):
@@ -648,7 +642,9 @@ def validator(x: None) -&gt; None:
         for d in [uplc.BuiltinUnit()]:
             f = uplc.Apply(f, d)
         ret = uplc_eval(f)
-        self.assertEqual(ret, uplc.BuiltinUnit(), &#34;literal None returned wrong value&#34;)
+        self.assertEqual(
+            ret, uplc.PlutusConstr(0, []), &#34;literal None returned wrong value&#34;
+        )
 
     @given(st.booleans())
     def test_constant_bool(self, x: bool):
@@ -799,7 +795,9 @@ def validator(x: None) -&gt; None:
         for d in [uplc.BuiltinUnit()]:
             f = uplc.Apply(f, d)
         ret = uplc_eval(f)
-        self.assertEqual(ret, uplc.BuiltinUnit(), &#34;literal None returned wrong value&#34;)</code></pre>
+        self.assertEqual(
+            ret, uplc.PlutusConstr(0, []), &#34;literal None returned wrong value&#34;
+        )</code></pre>
 </details>
 </dd>
 <dt id="hebi.tests.test_stdlib.StdlibTest.test_dict_get"><code class="name flex">
@@ -853,9 +851,7 @@ def validator(x: Dict[int, bytes], y: int, z: bytes) -&gt; bytes:
         # this tests that errors that are caused by assignments are actually triggered at the time of assigning
         source_code = &#34;&#34;&#34;
 def validator(xs: Dict[int, bytes]) -&gt; int:
-    sum_keys = 0
-    for x in xs.items():
-        sum_keys += x[0]
+    sum_keys = sum([x[0] for x in xs.items()])
     return sum_keys
 &#34;&#34;&#34;
         ast = compiler.parse(source_code)
@@ -882,14 +878,12 @@ def validator(xs: Dict[int, bytes]) -&gt; int:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">    @given(xs=st.dictionaries(st.integers(), st.binary()))
+<pre><code class="python">    @given(xs=st.dictionaries(st.binary(), st.integers()))
     def test_dict_items_values_sum(self, xs):
         # this tests that errors that are caused by assignments are actually triggered at the time of assigning
         source_code = &#34;&#34;&#34;
-def validator(xs: Dict[int, bytes]) -&gt; bytes:
-    sum_values = b&#34;&#34;
-    for x in xs.items():
-        sum_values += x[1]
+def validator(xs: Dict[bytes, int]) -&gt; int:
+    sum_values = sum([x[1] for x in xs.items()])
     return sum_values
 &#34;&#34;&#34;
         ast = compiler.parse(source_code)
@@ -899,12 +893,12 @@ def validator(xs: Dict[int, bytes]) -&gt; bytes:
         # UPLC lambdas may only take one argument at a time, so we evaluate by repeatedly applying
         for d in [
             uplc.PlutusMap(
-                {uplc.PlutusInteger(k): uplc.PlutusByteString(v) for k, v in xs.items()}
+                {uplc.PlutusByteString(k): uplc.PlutusInteger(v) for k, v in xs.items()}
             )
         ]:
             f = uplc.Apply(f, d)
         ret = uplc_eval(f).value
-        self.assertEqual(ret, b&#34;&#34;.join(xs.values()), &#34;dict.items returned wrong value&#34;)</code></pre>
+        self.assertEqual(ret, sum(xs.values()), &#34;dict.items returned wrong value&#34;)</code></pre>
 </details>
 </dd>
 <dt id="hebi.tests.test_stdlib.StdlibTest.test_dict_keys"><code class="name flex">

@@ -128,5 +128,5 @@ class RewriteGuaranteedVariables(CompilingNodeTransformer):
         if isinstance(node.ctx, Load):
             assert self.guaranteed(
                 node.id
-            ), f"Variable {node.id} is not initialized (in every branch of) preceding control flow"
+            ), f"Variable {node.id} is not initialized in (every branch of) preceding control flow"
         return self.generic_visit(node)

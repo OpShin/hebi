@@ -23,5 +23,5 @@ def validator(d: Anything, r: Anything) -> bytes:
     c = e.sender.payment_credential
     # this actually checks that c is of the type PubKeyCredential
     if isinstance(c, PubKeyCredential):
-        res = c.credential_hash
-    return res + r2
+        return c.credential_hash + r2
+    assert False, "Invalid sender"

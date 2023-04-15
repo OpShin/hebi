@@ -28,9 +28,8 @@ def own_policy_id(own_spent_utxo: TxOut) -> PolicyId:
     # obtain the policy id for which this contract can validate minting/burning
     cred = own_spent_utxo.address.payment_credential
     if isinstance(cred, ScriptCredential):
-        policy_id = cred.credential_hash
-    # This throws a name error if the credential is not a ScriptCredential instance
-    return policy_id
+        return cred.credential_hash
+    assert False, "Wrong type of payment credential"
 
 
 def own_address(own_policy_id: PolicyId) -> Address:
@@ -78,6 +77,8 @@ def validator(
         own_pid = own_policy_id(own_utxo)
         own_addr = own_utxo.address
     else:
+        own_addr = Address(PubKeyCredential(b""), NoStakingCredential())
+        own_pid = b""
         assert False, "Incorrect purpose given"
     token = Token(token_policy_id, token_name)
     all_locked = all_tokens_locked_at_contract_address(

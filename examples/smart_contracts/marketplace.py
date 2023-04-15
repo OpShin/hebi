@@ -58,13 +58,12 @@ def validator(datum: Listing, redeemer: ListingAction, context: ScriptContext) -
     if isinstance(purpose, Spending):
         own_utxo = resolve_spent_utxo(tx_info.inputs, purpose)
         own_addr = own_utxo.address
+        check_single_utxo_spent(tx_info.inputs, own_addr)
+        if isinstance(redeemer, Buy):
+            check_paid(tx_info.outputs, datum.vendor, datum.price)
+        elif isinstance(redeemer, Unlist):
+            check_owner_signed(tx_info.signatories, datum.owner)
+        else:
+            assert False, "Wrong redeemer"
     else:
         assert False, "Wrong script purpose"
-
-    check_single_utxo_spent(tx_info.inputs, own_addr)
-    if isinstance(redeemer, Buy):
-        check_paid(tx_info.outputs, datum.vendor, datum.price)
-    elif isinstance(redeemer, Unlist):
-        check_owner_signed(tx_info.signatories, datum.owner)
-    else:
-        assert False, "Wrong redeemer"

@@ -231,7 +231,7 @@ class UPLCCompiler(CompilingNodeTransformer):
                     typ=InstanceType(main_fun_typ),
                     ctx=Load(),
                 ),
-                typ=main_fun_typ.rettyp,
+                typ=InstanceType(main_fun_typ),
             )
         ]
 

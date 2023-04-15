@@ -558,3 +558,13 @@ def datum_to_cbor(d: pycardano.Datum) -> bytes:
 
 def datum_to_json(d: pycardano.Datum) -> str:
     return pycardano.PlutusData.to_json(d)
+
+
+class ReturnExtractor(TypedNodeVisitor):
+    """Utility to find all Return statements in an AST subtree"""
+
+    def __init__(self):
+        self.returns = []
+
+    def visit_Return(self, node: Return) -> None:
+        self.returns.append(node)

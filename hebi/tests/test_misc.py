@@ -826,3 +826,20 @@ def validator(xs) -> int:
             1 + 2 + 3 + 4,
             "for loop deconstruction did not behave as expected",
         )
+
+    def test_different_return_types_anything(self):
+        source_code = """
+from hebi.prelude import *
+
+def validator(a: int) -> Anything:
+    if a > 0:
+        return b""
+    else:
+        return 0
+"""
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast).compile()
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusInteger(1)))
+        self.assertEqual(res, uplc.PlutusByteString(b""))
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusInteger(-1)))
+        self.assertEqual(res, uplc.PlutusInteger(0))

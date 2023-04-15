@@ -2,7 +2,7 @@ from copy import copy
 import ast
 
 from .typed_ast import *
-from .util import PythonBuiltInTypes, CompilingNodeTransformer
+from .util import PythonBuiltInTypes, CompilingNodeTransformer, ReturnExtractor
 
 # from frozendict import frozendict
 
@@ -42,21 +42,12 @@ INITIAL_SCOPE.update(
 )
 
 
-class ReturnExtractor(NodeVisitor):
-    """Utility to find all Return statements in an AST subtree"""
-
-    def __init__(self):
-        self.returns = []
-
-    def visit_Return(self, node: Return) -> None:
-        self.returns.append(node)
-
-
 class AggressiveTypeInferencer(CompilingNodeTransformer):
     step = "Static Type Inference"
 
     # A stack of dictionaries for storing scoped knowledge of variable types
     scopes = [INITIAL_SCOPE]
+    current_ret_type = []
 
     # Obtain the type of a variable name in the current scope
     def variable_type(self, name: str) -> Type:
@@ -350,11 +341,13 @@ class AggressiveTypeInferencer(CompilingNodeTransformer):
     def visit_FunctionDef(self, node: FunctionDef) -> TypedFunctionDef:
         tfd = copy(node)
         assert not node.decorator_list, "Functions may not have decorators"
+        rettyp = InstanceType(self.type_from_annotation(tfd.returns))
         self.enter_scope()
+        self.current_ret_type.append(rettyp)
         tfd.args = self.visit(node.args)
         functyp = FunctionType(
             [t.typ for t in tfd.args.args],
-            InstanceType(self.type_from_annotation(tfd.returns)),
+            rettyp,
         )
         tfd.typ = InstanceType(functyp)
         # We need the function type inside for recursion
@@ -374,6 +367,7 @@ class AggressiveTypeInferencer(CompilingNodeTransformer):
                 functyp.rettyp >= r.typ for r in rets
             ), f"Function '{node.name}' annotated return type does not match actual return type"
         self.exit_scope()
+        self.current_ret_type.pop(-1)
         # We need the function type outside for usage
         self.set_variable_type(node.name, tfd.typ)
         return tfd
@@ -541,7 +535,9 @@ class AggressiveTypeInferencer(CompilingNodeTransformer):
     def visit_Return(self, node: Return) -> TypedReturn:
         tp = copy(node)
         tp.value = self.visit(node.value)
-        tp.typ = tp.value.typ
+        tp.typ = (
+            tp.value.typ if not self.current_ret_type else self.current_ret_type[-1]
+        )
         return tp
 
     def visit_Attribute(self, node: Attribute) -> TypedAttribute:

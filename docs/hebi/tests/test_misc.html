@@ -902,7 +902,8 @@ def validator(a):
     def test_opt_unsafe_cast(self):
         # test that unsafe casts are not optimized away
         source_code = &#34;&#34;&#34;
-from opshin.prelude import *
+from hebi.prelude import *
+
 def validator(x: Token) -&gt; bool:
     b: Anything = x
     a: int = b
@@ -1805,7 +1806,8 @@ def validator(a):
     def test_opt_unsafe_cast(self):
         # test that unsafe casts are not optimized away
         source_code = &#34;&#34;&#34;
-from opshin.prelude import *
+from hebi.prelude import *
+
 def validator(x: Token) -&gt; bool:
     b: Anything = x
     a: int = b
@@ -2491,7 +2493,8 @@ def validator(a):
 <pre><code class="python">    def test_opt_unsafe_cast(self):
         # test that unsafe casts are not optimized away
         source_code = &#34;&#34;&#34;
-from opshin.prelude import *
+from hebi.prelude import *
+
 def validator(x: Token) -&gt; bool:
     b: Anything = x
     a: int = b

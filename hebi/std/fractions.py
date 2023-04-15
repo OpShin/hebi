@@ -6,6 +6,8 @@ This does not maintain smallest possible notation invariants for the sake of eff
 from dataclasses import dataclass
 from pycardano import PlutusData
 
+from hebi.std.math import *
+
 
 @dataclass(unsafe_hash=True)
 class Fraction(PlutusData):

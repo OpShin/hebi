@@ -188,10 +188,7 @@ class UPLCCompiler(CompilingNodeTransformer):
         # TODO can use more sophisiticated procedure here i.e. functions marked by comment
         main_fun: typing.Optional[InstanceType] = None
         for s in node.body:
-            if (
-                isinstance(s, FunctionDef)
-                and s.orig_name == self.validator_function_name
-            ):
+            if isinstance(s, FunctionDef) and s.name == self.validator_function_name:
                 main_fun = s
         assert (
             main_fun is not None
@@ -203,9 +200,9 @@ class UPLCCompiler(CompilingNodeTransformer):
 
         # check if this is a contract written to double function
         enable_double_func_mint_spend = False
-        if len(main_fun_typ.typ.argtyps) >= 3 and self.force_three_params:
+        if len(main_fun_typ.argtyps) >= 3 and self.force_three_params:
             # check if is possible
-            second_last_arg = main_fun_typ.typ.argtyps[-2]
+            second_last_arg = main_fun_typ.argtyps[-2]
             assert isinstance(
                 second_last_arg, InstanceType
             ), "Can not pass Class into validator"
@@ -230,15 +227,17 @@ class UPLCCompiler(CompilingNodeTransformer):
         body = node.body + [
             TypedReturn(
                 value=Name(
-                    id=self.validator_function_name, typ=main_fun_typ, ctx=Load()
+                    id=self.validator_function_name,
+                    typ=InstanceType(main_fun_typ),
+                    ctx=Load(),
                 ),
-                typ=main_fun_typ.typ.rettyp,
+                typ=main_fun_typ.rettyp,
             )
         ]
 
         validator = plt.Lambda(
-            [f"p{i}" for i, _ in enumerate(main_fun_typ.typ.argtyps)],
-            transform_output_map(main_fun_typ.typ.rettyp)(
+            [f"p{i}" for i, _ in enumerate(main_fun_typ.argtyps)],
+            transform_output_map(main_fun_typ.rettyp)(
                 plt.Let(
                     [
                         (
@@ -251,7 +250,7 @@ class UPLCCompiler(CompilingNodeTransformer):
                         plt.Var("val"),
                         *[
                             transform_ext_params_map(a)(plt.Var(f"p{i}"))
-                            for i, a in enumerate(main_fun_typ.typ.argtyps)
+                            for i, a in enumerate(main_fun_typ.argtyps)
                         ],
                     ),
                 ),
@@ -259,7 +258,7 @@ class UPLCCompiler(CompilingNodeTransformer):
         )
         if enable_double_func_mint_spend:
             validator = wrap_validator_double_function(
-                validator, pass_through=len(main_fun_typ.typ.argtyps) - 3
+                validator, pass_through=len(main_fun_typ.argtyps) - 3
             )
         elif self.force_three_params:
             # Error if the double function is enforced but not possible
@@ -385,7 +384,7 @@ class UPLCCompiler(CompilingNodeTransformer):
     def visit_Return(self, node: TypedReturn) -> typing.Callable[[plt.AST], plt.AST]:
         # Throw away the term we were passed, this is going to be the last!
         compiled_return = self.visit(node.value)
-        if isinstance(node.typ.typ.rettyp.typ, AnyType):
+        if isinstance(node.typ.typ, AnyType):
             # if the function returns generic data, wrap the function return value
             compiled_return = transform_output_map(node.value.typ)(compiled_return)
         return lambda _: compiled_return

@@ -28,10 +28,10 @@ script:
 - >
   coverage run -a --source=hebi -m hebi compile_pluto examples/smart_contracts/assert_sum.py
 - >
-  coverage run -a --source=hebi -m opshin build examples/smart_contracts/assert_sum.py
+  coverage run -a --source=hebi -m hebi build examples/smart_contracts/assert_sum.py
 - >
   for i in $(find examples -type f -name "*.py" -not \( -name "broken*" -o -name "extract*" \)); do
-    coverage run -a --source=hebi -m opshin compile "$i"
+    coverage run -a --source=hebi -m hebi compile "$i"
   done
 
 after_success:

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hebi"
-version = "0.1.1.0.12.4"
+version = "0.1.1.0.12.5"
 description = "A simple and fast pythonic programming language for Smart Contracts on Cardano"
 authors = ["nielstron <n.muendler@web.de>"]
 license = "MIT"

@@ -5,6 +5,8 @@ def validator(n: int) -> int:
     if b < 5:
         print("add")
         c = 5
+    else:
+        c = 0
     # list comprehensions for loops
     d = sum([i for i in range(2)])
 

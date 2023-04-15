@@ -16,7 +16,9 @@ class RewriteGuaranteedVariables(CompilingNodeTransformer):
     loaded_vars = None
     # names that are guaranteed to be available to the current node
     # this acts differently to the type inferencer! in particular, ite/while/for all produce their own scope
-    guaranteed_avail_names = [list(INITIAL_SCOPE.keys())]
+    guaranteed_avail_names = [
+        list(INITIAL_SCOPE.keys()) + ["List", "Dict", "Union", "isinstance"]
+    ]
 
     def guaranteed(self, name: str) -> bool:
         name = name
@@ -75,6 +77,22 @@ class RewriteGuaranteedVariables(CompilingNodeTransformer):
         self.guaranteed(node.target.id)
         node_cp.body = [self.visit(s) for s in node.body]
         node_cp.orelse = [self.visit(s) for s in node.orelse]
+        self.exit_scope()
+        return node_cp
+
+    def visit_ListComp(self, node: ListComp):
+        assert len(node.generators) == 1, "Currently only one generator supported"
+        gen = node.generators[0]
+        assert isinstance(
+            gen.target, Name
+        ), "Can only assign value to singleton element"
+        assert isinstance(gen.target, Name), "Can only assign to singleton name"
+        node_cp = copy(node)
+        node_cp.generators = [copy(gen)]
+        self.enter_scope()
+        self.set_guaranteed(gen.target.id)
+        node_cp.generators[0].ifs = [self.visit(if_expr) for if_expr in gen.ifs]
+        node_cp.elt = self.visit(node.elt)
         self.exit_scope()
         return node_cp
 

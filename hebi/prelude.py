@@ -69,13 +69,12 @@ def resolve_datum_unsafe(txout: TxOut, tx_info: TxInfo) -> BuiltinData:
     """
     attached_datum = txout.datum
     if isinstance(attached_datum, SomeOutputDatumHash):
-        res = tx_info.data[attached_datum.datum_hash]
+        return tx_info.data[attached_datum.datum_hash]
     elif isinstance(attached_datum, SomeOutputDatum):
-        res = attached_datum.datum
+        return attached_datum.datum
     else:
         # no datum attached
         assert False, "No datum was attached to the given transaction output"
-    return res
 
 
 def resolve_datum(

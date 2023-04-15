@@ -30,7 +30,7 @@ script:
 - >
   coverage run -a --source=hebi -m hebi build examples/smart_contracts/assert_sum.py
 - >
-  for i in $(find examples -type f -name "*.py" -not \( -name "broken*" -o -name "extract*" \)); do
+  for i in $(find examples -type f -name "*.py" -not \( -name "broken*" -o -name "extract*" -o -name "__*" \)); do
     echo "$i"
     coverage run -a --source=hebi -m hebi compile "$i" > /dev/null
   done

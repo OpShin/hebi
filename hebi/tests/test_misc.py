@@ -30,7 +30,7 @@ class MiscTest(unittest.TestCase):
         for d in [uplc.PlutusInteger(20), uplc.PlutusInteger(22), uplc.BuiltinUnit()]:
             f = uplc.Apply(f, d)
         ret = uplc_eval(f)
-        self.assertEqual(ret, uplc.BuiltinUnit())
+        self.assertEqual(ret, uplc.PlutusConstr(0, []))
 
     def test_assert_sum_contract_fail(self):
         input_file = "examples/smart_contracts/assert_sum.py"
@@ -195,7 +195,7 @@ class MiscTest(unittest.TestCase):
         ]:
             f = uplc.Apply(f, d)
         ret = uplc_eval(f)
-        self.assertEqual(ret, uplc.BuiltinUnit())
+        self.assertEqual(ret, uplc.PlutusConstr(0, []))
 
     def test_gift_contract_fail(self):
         input_file = "examples/smart_contracts/gift.py"
@@ -843,3 +843,15 @@ def validator(a: int) -> Anything:
         self.assertEqual(res, uplc.PlutusByteString(b""))
         res = uplc_eval(uplc.Apply(code, uplc.PlutusInteger(-1)))
         self.assertEqual(res, uplc.PlutusInteger(0))
+
+    def test_no_return_annotation_no_return(self):
+        source_code = """
+from hebi.prelude import *
+
+def validator(a):
+    pass
+"""
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast).compile()
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusConstr(0, [])))
+        self.assertEqual(res, uplc.PlutusConstr(0, []))

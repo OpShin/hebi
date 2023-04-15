@@ -18,7 +18,6 @@ from .rewrite.rewrite_duplicate_assignment import RewriteDuplicateAssignment
 from .rewrite.rewrite_zero_ary import RewriteZeroAry
 from .optimize.optimize_remove_pass import OptimizeRemovePass
 from .optimize.optimize_remove_deadvars import OptimizeRemoveDeadvars
-from .optimize.optimize_varlen import OptimizeVarlen
 from .type_inference import *
 from .util import CompilingNodeTransformer, PowImpl
 from .typed_ast import transform_ext_params_map, transform_output_map, RawPlutoExpr
@@ -242,7 +241,9 @@ class UPLCCompiler(CompilingNodeTransformer):
                     [
                         (
                             "val",
-                            self.visit_sequence(body)(plt.Unit()),
+                            self.visit_sequence(body)(
+                                plt.ConstrData(plt.Integer(0), plt.EmptyDataList())
+                            ),
                         ),
                     ],
                     plt.Apply(
@@ -360,7 +361,11 @@ class UPLCCompiler(CompilingNodeTransformer):
     ) -> typing.Callable[[plt.AST], plt.AST]:
         body = node.body.copy()
         # defaults to returning None if there is no return statement
-        compiled_body = self.visit_sequence(body)(plt.Unit())
+        if node.typ.typ.rettyp.typ == AnyType():
+            ret_val = plt.ConstrData(plt.Integer(0), plt.EmptyDataList())
+        else:
+            ret_val = plt.Unit()
+        compiled_body = self.visit_sequence(body)(ret_val)
         return lambda x: plt.Let(
             [
                 (

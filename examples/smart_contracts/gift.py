@@ -1,7 +1,7 @@
 from hebi.prelude import *
 
 
-@dataclass()
+@dataclass
 class CancelDatum(PlutusData):
     pubkeyhash: bytes
 

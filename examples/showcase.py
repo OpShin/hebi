@@ -1,6 +1,3 @@
-from hebi.prelude import *
-
-
 def validator(n: int) -> int:
     # Tuple assignment works
     a, b = 3, n

@@ -142,7 +142,7 @@ def compare_lower_bound(a: LowerBoundPOSIXTime, b: LowerBoundPOSIXTime) -&gt; in
 
 
 def contains(a: POSIXTimeRange, b: POSIXTimeRange) -&gt; bool:
-    # Returns True if the interval `b` is entirely contained in `a`.
+    &#34;&#34;&#34;Returns True if the interval `b` is entirely contained in `a`.&#34;&#34;&#34;
     lower = compare_lower_bound(a.lower_bound, b.lower_bound)
     upper = compare_upper_bound(a.upper_bound, b.upper_bound)
     return (lower == 1 or lower == 0) and (upper == 0 or upper == -1)
@@ -151,26 +151,31 @@ def contains(a: POSIXTimeRange, b: POSIXTimeRange) -&gt; bool:
 def make_range(
     lower_bound: POSIXTime,
     upper_bound: POSIXTime,
-    lower_closed: BoolData,
-    upper_closed: BoolData,
 ) -&gt; POSIXTimeRange:
+    &#34;&#34;&#34;
+    Create a bounded interval from the given time `lower_bound` up to the given `upper_bound`, including the given time
+    &#34;&#34;&#34;
     return POSIXTimeRange(
-        LowerBoundPOSIXTime(FinitePOSIXTime(lower_bound), lower_closed),
-        UpperBoundPOSIXTime(FinitePOSIXTime(upper_bound), upper_closed),
+        LowerBoundPOSIXTime(FinitePOSIXTime(lower_bound), TrueData()),
+        UpperBoundPOSIXTime(FinitePOSIXTime(upper_bound), TrueData()),
     )
 
 
-def make_from(lower_bound: POSIXTime, lower_closed: BoolData) -&gt; POSIXTimeRange:
+def make_from(lower_bound: POSIXTime) -&gt; POSIXTimeRange:
+    &#34;&#34;&#34;Create a bounded interval from the given time `lower_bound` up to infinity, including the given time&#34;&#34;&#34;
     return POSIXTimeRange(
-        LowerBoundPOSIXTime(FinitePOSIXTime(lower_bound), lower_closed),
+        LowerBoundPOSIXTime(FinitePOSIXTime(lower_bound), TrueData()),
         UpperBoundPOSIXTime(PosInfPOSIXTime(), TrueData()),
     )
 
 
-def make_to(upper_bound: POSIXTime, upper_closed: BoolData) -&gt; POSIXTimeRange:
+def make_to(upper_bound: POSIXTime) -&gt; POSIXTimeRange:
+    &#34;&#34;&#34;
+    Create a bounded interval from negative infinity up to the given `upper_bound`, including the given time
+    &#34;&#34;&#34;
     return POSIXTimeRange(
         LowerBoundPOSIXTime(NegInfPOSIXTime(), TrueData()),
-        UpperBoundPOSIXTime(FinitePOSIXTime(upper_bound), upper_closed),
+        UpperBoundPOSIXTime(FinitePOSIXTime(upper_bound), TrueData()),
     )</code></pre>
 </details>
 </section>
@@ -203,7 +208,7 @@ def make_to(upper_bound: POSIXTime, upper_closed: BoolData) -&gt; POSIXTimeRange
 </details>
 </dd>
 <dt id="hebi.ledger.interval.compare_extended"><code class="name flex">
-<span>def <span class="ident">compare_extended</span></span>(<span>a: Union[<a title="hebi.prelude.NegInfPOSIXTime" href="../prelude.html#hebi.prelude.NegInfPOSIXTime">NegInfPOSIXTime</a>, <a title="hebi.prelude.FinitePOSIXTime" href="../prelude.html#hebi.prelude.FinitePOSIXTime">FinitePOSIXTime</a>, <a title="hebi.prelude.PosInfPOSIXTime" href="../prelude.html#hebi.prelude.PosInfPOSIXTime">PosInfPOSIXTime</a>], b: Union[<a title="hebi.prelude.NegInfPOSIXTime" href="../prelude.html#hebi.prelude.NegInfPOSIXTime">NegInfPOSIXTime</a>, <a title="hebi.prelude.FinitePOSIXTime" href="../prelude.html#hebi.prelude.FinitePOSIXTime">FinitePOSIXTime</a>, <a title="hebi.prelude.PosInfPOSIXTime" href="../prelude.html#hebi.prelude.PosInfPOSIXTime">PosInfPOSIXTime</a>]) ‑> int</span>
+<span>def <span class="ident">compare_extended</span></span>(<span>a: Union[<a title="hebi.ledger.api_v2.NegInfPOSIXTime" href="api_v2.html#hebi.ledger.api_v2.NegInfPOSIXTime">NegInfPOSIXTime</a>, <a title="hebi.ledger.api_v2.FinitePOSIXTime" href="api_v2.html#hebi.ledger.api_v2.FinitePOSIXTime">FinitePOSIXTime</a>, <a title="hebi.ledger.api_v2.PosInfPOSIXTime" href="api_v2.html#hebi.ledger.api_v2.PosInfPOSIXTime">PosInfPOSIXTime</a>], b: Union[<a title="hebi.ledger.api_v2.NegInfPOSIXTime" href="api_v2.html#hebi.ledger.api_v2.NegInfPOSIXTime">NegInfPOSIXTime</a>, <a title="hebi.ledger.api_v2.FinitePOSIXTime" href="api_v2.html#hebi.ledger.api_v2.FinitePOSIXTime">FinitePOSIXTime</a>, <a title="hebi.ledger.api_v2.PosInfPOSIXTime" href="api_v2.html#hebi.ledger.api_v2.PosInfPOSIXTime">PosInfPOSIXTime</a>]) ‑> int</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -226,7 +231,7 @@ def make_to(upper_bound: POSIXTime, upper_closed: BoolData) -&gt; POSIXTimeRange
 </details>
 </dd>
 <dt id="hebi.ledger.interval.compare_extended_helper"><code class="name flex">
-<span>def <span class="ident">compare_extended_helper</span></span>(<span>time: Union[<a title="hebi.prelude.NegInfPOSIXTime" href="../prelude.html#hebi.prelude.NegInfPOSIXTime">NegInfPOSIXTime</a>, <a title="hebi.prelude.FinitePOSIXTime" href="../prelude.html#hebi.prelude.FinitePOSIXTime">FinitePOSIXTime</a>, <a title="hebi.prelude.PosInfPOSIXTime" href="../prelude.html#hebi.prelude.PosInfPOSIXTime">PosInfPOSIXTime</a>]) ‑> int</span>
+<span>def <span class="ident">compare_extended_helper</span></span>(<span>time: Union[<a title="hebi.ledger.api_v2.NegInfPOSIXTime" href="api_v2.html#hebi.ledger.api_v2.NegInfPOSIXTime">NegInfPOSIXTime</a>, <a title="hebi.ledger.api_v2.FinitePOSIXTime" href="api_v2.html#hebi.ledger.api_v2.FinitePOSIXTime">FinitePOSIXTime</a>, <a title="hebi.ledger.api_v2.PosInfPOSIXTime" href="api_v2.html#hebi.ledger.api_v2.PosInfPOSIXTime">PosInfPOSIXTime</a>]) ‑> int</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -246,7 +251,7 @@ def make_to(upper_bound: POSIXTime, upper_closed: BoolData) -&gt; POSIXTimeRange
 </details>
 </dd>
 <dt id="hebi.ledger.interval.compare_lower_bound"><code class="name flex">
-<span>def <span class="ident">compare_lower_bound</span></span>(<span>a: <a title="hebi.prelude.LowerBoundPOSIXTime" href="../prelude.html#hebi.prelude.LowerBoundPOSIXTime">LowerBoundPOSIXTime</a>, b: <a title="hebi.prelude.LowerBoundPOSIXTime" href="../prelude.html#hebi.prelude.LowerBoundPOSIXTime">LowerBoundPOSIXTime</a>) ‑> int</span>
+<span>def <span class="ident">compare_lower_bound</span></span>(<span>a: <a title="hebi.ledger.api_v2.LowerBoundPOSIXTime" href="api_v2.html#hebi.ledger.api_v2.LowerBoundPOSIXTime">LowerBoundPOSIXTime</a>, b: <a title="hebi.ledger.api_v2.LowerBoundPOSIXTime" href="api_v2.html#hebi.ledger.api_v2.LowerBoundPOSIXTime">LowerBoundPOSIXTime</a>) ‑> int</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -268,7 +273,7 @@ def make_to(upper_bound: POSIXTime, upper_closed: BoolData) -&gt; POSIXTimeRange
 </details>
 </dd>
 <dt id="hebi.ledger.interval.compare_upper_bound"><code class="name flex">
-<span>def <span class="ident">compare_upper_bound</span></span>(<span>a: <a title="hebi.prelude.UpperBoundPOSIXTime" href="../prelude.html#hebi.prelude.UpperBoundPOSIXTime">UpperBoundPOSIXTime</a>, b: <a title="hebi.prelude.UpperBoundPOSIXTime" href="../prelude.html#hebi.prelude.UpperBoundPOSIXTime">UpperBoundPOSIXTime</a>) ‑> int</span>
+<span>def <span class="ident">compare_upper_bound</span></span>(<span>a: <a title="hebi.ledger.api_v2.UpperBoundPOSIXTime" href="api_v2.html#hebi.ledger.api_v2.UpperBoundPOSIXTime">UpperBoundPOSIXTime</a>, b: <a title="hebi.ledger.api_v2.UpperBoundPOSIXTime" href="api_v2.html#hebi.ledger.api_v2.UpperBoundPOSIXTime">UpperBoundPOSIXTime</a>) ‑> int</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -290,23 +295,23 @@ def make_to(upper_bound: POSIXTime, upper_closed: BoolData) -&gt; POSIXTimeRange
 </details>
 </dd>
 <dt id="hebi.ledger.interval.contains"><code class="name flex">
-<span>def <span class="ident">contains</span></span>(<span>a: <a title="hebi.prelude.POSIXTimeRange" href="../prelude.html#hebi.prelude.POSIXTimeRange">POSIXTimeRange</a>, b: <a title="hebi.prelude.POSIXTimeRange" href="../prelude.html#hebi.prelude.POSIXTimeRange">POSIXTimeRange</a>) ‑> bool</span>
+<span>def <span class="ident">contains</span></span>(<span>a: <a title="hebi.ledger.api_v2.POSIXTimeRange" href="api_v2.html#hebi.ledger.api_v2.POSIXTimeRange">POSIXTimeRange</a>, b: <a title="hebi.ledger.api_v2.POSIXTimeRange" href="api_v2.html#hebi.ledger.api_v2.POSIXTimeRange">POSIXTimeRange</a>) ‑> bool</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Returns True if the interval <code>b</code> is entirely contained in <code>a</code>.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def contains(a: POSIXTimeRange, b: POSIXTimeRange) -&gt; bool:
-    # Returns True if the interval `b` is entirely contained in `a`.
+    &#34;&#34;&#34;Returns True if the interval `b` is entirely contained in `a`.&#34;&#34;&#34;
     lower = compare_lower_bound(a.lower_bound, b.lower_bound)
     upper = compare_upper_bound(a.upper_bound, b.upper_bound)
     return (lower == 1 or lower == 0) and (upper == 0 or upper == -1)</code></pre>
 </details>
 </dd>
 <dt id="hebi.ledger.interval.get_bool"><code class="name flex">
-<span>def <span class="ident">get_bool</span></span>(<span>b: Union[<a title="hebi.prelude.TrueData" href="../prelude.html#hebi.prelude.TrueData">TrueData</a>, <a title="hebi.prelude.FalseData" href="../prelude.html#hebi.prelude.FalseData">FalseData</a>]) ‑> bool</span>
+<span>def <span class="ident">get_bool</span></span>(<span>b: Union[<a title="hebi.ledger.api_v2.TrueData" href="api_v2.html#hebi.ledger.api_v2.TrueData">TrueData</a>, <a title="hebi.ledger.api_v2.FalseData" href="api_v2.html#hebi.ledger.api_v2.FalseData">FalseData</a>]) ‑> bool</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -322,26 +327,27 @@ def make_to(upper_bound: POSIXTime, upper_closed: BoolData) -&gt; POSIXTimeRange
 </details>
 </dd>
 <dt id="hebi.ledger.interval.make_from"><code class="name flex">
-<span>def <span class="ident">make_from</span></span>(<span>lower_bound: int, lower_closed: Union[<a title="hebi.prelude.TrueData" href="../prelude.html#hebi.prelude.TrueData">TrueData</a>, <a title="hebi.prelude.FalseData" href="../prelude.html#hebi.prelude.FalseData">FalseData</a>]) ‑> <a title="hebi.prelude.POSIXTimeRange" href="../prelude.html#hebi.prelude.POSIXTimeRange">POSIXTimeRange</a></span>
+<span>def <span class="ident">make_from</span></span>(<span>lower_bound: int) ‑> <a title="hebi.ledger.api_v2.POSIXTimeRange" href="api_v2.html#hebi.ledger.api_v2.POSIXTimeRange">POSIXTimeRange</a></span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Create a bounded interval from the given time <code>lower_bound</code> up to infinity, including the given time</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def make_from(lower_bound: POSIXTime, lower_closed: BoolData) -&gt; POSIXTimeRange:
+<pre><code class="python">def make_from(lower_bound: POSIXTime) -&gt; POSIXTimeRange:
+    &#34;&#34;&#34;Create a bounded interval from the given time `lower_bound` up to infinity, including the given time&#34;&#34;&#34;
     return POSIXTimeRange(
-        LowerBoundPOSIXTime(FinitePOSIXTime(lower_bound), lower_closed),
+        LowerBoundPOSIXTime(FinitePOSIXTime(lower_bound), TrueData()),
         UpperBoundPOSIXTime(PosInfPOSIXTime(), TrueData()),
     )</code></pre>
 </details>
 </dd>
 <dt id="hebi.ledger.interval.make_range"><code class="name flex">
-<span>def <span class="ident">make_range</span></span>(<span>lower_bound: int, upper_bound: int, lower_closed: Union[<a title="hebi.prelude.TrueData" href="../prelude.html#hebi.prelude.TrueData">TrueData</a>, <a title="hebi.prelude.FalseData" href="../prelude.html#hebi.prelude.FalseData">FalseData</a>], upper_closed: Union[<a title="hebi.prelude.TrueData" href="../prelude.html#hebi.prelude.TrueData">TrueData</a>, <a title="hebi.prelude.FalseData" href="../prelude.html#hebi.prelude.FalseData">FalseData</a>]) ‑> <a title="hebi.prelude.POSIXTimeRange" href="../prelude.html#hebi.prelude.POSIXTimeRange">POSIXTimeRange</a></span>
+<span>def <span class="ident">make_range</span></span>(<span>lower_bound: int, upper_bound: int) ‑> <a title="hebi.ledger.api_v2.POSIXTimeRange" href="api_v2.html#hebi.ledger.api_v2.POSIXTimeRange">POSIXTimeRange</a></span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Create a bounded interval from the given time <code>lower_bound</code> up to the given <code>upper_bound</code>, including the given time</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -349,28 +355,32 @@ def make_to(upper_bound: POSIXTime, upper_closed: BoolData) -&gt; POSIXTimeRange
 <pre><code class="python">def make_range(
     lower_bound: POSIXTime,
     upper_bound: POSIXTime,
-    lower_closed: BoolData,
-    upper_closed: BoolData,
 ) -&gt; POSIXTimeRange:
+    &#34;&#34;&#34;
+    Create a bounded interval from the given time `lower_bound` up to the given `upper_bound`, including the given time
+    &#34;&#34;&#34;
     return POSIXTimeRange(
-        LowerBoundPOSIXTime(FinitePOSIXTime(lower_bound), lower_closed),
-        UpperBoundPOSIXTime(FinitePOSIXTime(upper_bound), upper_closed),
+        LowerBoundPOSIXTime(FinitePOSIXTime(lower_bound), TrueData()),
+        UpperBoundPOSIXTime(FinitePOSIXTime(upper_bound), TrueData()),
     )</code></pre>
 </details>
 </dd>
 <dt id="hebi.ledger.interval.make_to"><code class="name flex">
-<span>def <span class="ident">make_to</span></span>(<span>upper_bound: int, upper_closed: Union[<a title="hebi.prelude.TrueData" href="../prelude.html#hebi.prelude.TrueData">TrueData</a>, <a title="hebi.prelude.FalseData" href="../prelude.html#hebi.prelude.FalseData">FalseData</a>]) ‑> <a title="hebi.prelude.POSIXTimeRange" href="../prelude.html#hebi.prelude.POSIXTimeRange">POSIXTimeRange</a></span>
+<span>def <span class="ident">make_to</span></span>(<span>upper_bound: int) ‑> <a title="hebi.ledger.api_v2.POSIXTimeRange" href="api_v2.html#hebi.ledger.api_v2.POSIXTimeRange">POSIXTimeRange</a></span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Create a bounded interval from negative infinity up to the given <code>upper_bound</code>, including the given time</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def make_to(upper_bound: POSIXTime, upper_closed: BoolData) -&gt; POSIXTimeRange:
+<pre><code class="python">def make_to(upper_bound: POSIXTime) -&gt; POSIXTimeRange:
+    &#34;&#34;&#34;
+    Create a bounded interval from negative infinity up to the given `upper_bound`, including the given time
+    &#34;&#34;&#34;
     return POSIXTimeRange(
         LowerBoundPOSIXTime(NegInfPOSIXTime(), TrueData()),
-        UpperBoundPOSIXTime(FinitePOSIXTime(upper_bound), upper_closed),
+        UpperBoundPOSIXTime(FinitePOSIXTime(upper_bound), TrueData()),
     )</code></pre>
 </details>
 </dd>

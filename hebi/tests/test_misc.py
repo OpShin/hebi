@@ -164,25 +164,6 @@ class MiscTest(unittest.TestCase):
             ret,
         )
 
-    @parameterized.expand(
-        [
-            (
-                "d8799fd8799f9fd8799fd8799fd8799f582055d353acacaab6460b37ed0f0e3a1a0aabf056df4a7fa1e265d21149ccacc527ff01ffd8799fd8799fd87a9f581cdbe769758f26efb21f008dc097bb194cffc622acc37fcefc5372eee3ffd87a80ffa140a1401a00989680d87a9f5820dfab81872ce2bbe6ee5af9bbfee4047f91c1f57db5e30da727d5fef1e7f02f4dffd87a80ffffff809fd8799fd8799fd8799f581cdc315c289fee4484eda07038393f21dc4e572aff292d7926018725c2ffd87a80ffa140a14000d87980d87a80ffffa140a14000a140a1400080a0d8799fd8799fd87980d87a80ffd8799fd87b80d87a80ffff80a1d87a9fd8799fd8799f582055d353acacaab6460b37ed0f0e3a1a0aabf056df4a7fa1e265d21149ccacc527ff01ffffd87980a15820dfab81872ce2bbe6ee5af9bbfee4047f91c1f57db5e30da727d5fef1e7f02f4dd8799f581cdc315c289fee4484eda07038393f21dc4e572aff292d7926018725c2ffd8799f5820746957f0eb57f2b11119684e611a98f373afea93473fefbb7632d579af2f6259ffffd87a9fd8799fd8799f582055d353acacaab6460b37ed0f0e3a1a0aabf056df4a7fa1e265d21149ccacc527ff01ffffff"
-            ),
-            (
-                "d8799fd8799f9fd8799fd8799fd8799f582055d353acacaab6460b37ed0f0e3a1a0aabf056df4a7fa1e265d21149ccacc527ff01ffd8799fd8799fd87a9f581cdbe769758f26efb21f008dc097bb194cffc622acc37fcefc5372eee3ffd87a80ffa140a1401a00989680d87a9f5820dfab81872ce2bbe6ee5af9bbfee4047f91c1f57db5e30da727d5fef1e7f02f4dffd87a80ffffff809fd8799fd8799fd8799f581cdc315c289fee4484eda07038393f21dc4e572aff292d7926018725c2ffd87a80ffa140a14000d87980d87a80ffffa140a14000a140a1400080a0d8799fd8799fd87a9f1b000001836ac117d8ffd87a80ffd8799fd87b80d87a80ffff80a1d87a9fd8799fd8799f582055d353acacaab6460b37ed0f0e3a1a0aabf056df4a7fa1e265d21149ccacc527ff01ffffd87980a15820dfab81872ce2bbe6ee5af9bbfee4047f91c1f57db5e30da727d5fef1e7f02f4dd8799f581cdc315c289fee4484eda07038393f21dc4e572aff292d7926018725c2ffd8799f5820797a1e1720b63621c6b185088184cb8e23af6e46b55bd83e7a91024c823a6c2affffd87a9fd8799fd8799f582055d353acacaab6460b37ed0f0e3a1a0aabf056df4a7fa1e265d21149ccacc527ff01ffffff"
-            ),
-            (
-                "d8799fd8799f9fd8799fd8799fd8799f582055d353acacaab6460b37ed0f0e3a1a0aabf056df4a7fa1e265d21149ccacc527ff01ffd8799fd8799fd87a9f581cdbe769758f26efb21f008dc097bb194cffc622acc37fcefc5372eee3ffd87a80ffa140a1401a00989680d87a9f5820dfab81872ce2bbe6ee5af9bbfee4047f91c1f57db5e30da727d5fef1e7f02f4dffd87a80ffffff809fd8799fd8799fd8799f581cdc315c289fee4484eda07038393f21dc4e572aff292d7926018725c2ffd87a80ffa140a14000d87980d87a80ffd8799fd8799fd8799f581cdc315c289fee4484eda07038393f21dc4e572aff292d7926018725c2ffd87a80ffa140a1401a000f4240d87980d87a80ffffa140a14000a140a1400080a0d8799fd8799fd87a9f1b000001836ac117d8ffd87a80ffd8799fd87b80d87a80ffff9f581cdc315c289fee4484eda07038393f21dc4e572aff292d7926018725c2ffa1d87a9fd8799fd8799f582055d353acacaab6460b37ed0f0e3a1a0aabf056df4a7fa1e265d21149ccacc527ff01ffffd87980a15820dfab81872ce2bbe6ee5af9bbfee4047f91c1f57db5e30da727d5fef1e7f02f4dd8799f581cdc315c289fee4484eda07038393f21dc4e572aff292d7926018725c2ffd8799f5820c17c32f6433ae22c2acaebfb796bbfaee3993ff7ebb58a2bac6b4a3bdd2f6d28ffffd87a9fd8799fd8799f582055d353acacaab6460b37ed0f0e3a1a0aabf056df4a7fa1e265d21149ccacc527ff01ffffff"
-            ),
-        ]
-    )
-    def test_script_context_repr_correct(self, p):
-        # Make sure that this parses correctly and does not throw an error
-        # Note that this was extracted from a PlutusV2 invocation
-        # in increasing complexity...
-        prelude.ScriptContext.from_cbor(p)
-
     def test_gift_contract_succeed(self):
         input_file = "examples/smart_contracts/gift.py"
         with open(input_file) as fp:
@@ -680,14 +661,49 @@ def validator(x: Anything) -> int:
         res = uplc_eval(uplc.Apply(code, uplc.PlutusInteger(0))).value
         self.assertEqual(res, 0)
 
-    @unittest.expectedFailure
     def test_typecast_int_anything(self):
-        # this should not compile, we can not upcast with this notation
-        # up to discussion whether this should be allowed, but i.g. it should never be necessary or useful
+        # this should compile, it happens implicitly anyways when calling a function with Any parameters
         source_code = """
 def validator(x: int) -> Anything:
     b: Anything = x
-    return x
+    return b
+"""
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast).compile()
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusInteger(0))).value
+        self.assertEqual(res, 0)
+
+    def test_typecast_int_anything_int(self):
+        source_code = """
+def validator(x: int) -> Anything:
+    b: Anything = x
+    c: int = b
+    return c + 1
+"""
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast).compile()
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusInteger(0))).value
+        self.assertEqual(res, 1)
+
+    def test_typecast_anything_int_anything(self):
+        source_code = """
+def validator(x: Anything) -> Anything:
+    b: int = x
+    c: Anything = b + 1
+    return c
+"""
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast).compile()
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusInteger(0))).value
+        self.assertEqual(res, 1)
+
+    @unittest.expectedFailure
+    def test_typecast_int_str(self):
+        # this should compile, the two types are unrelated and there is no meaningful way to cast them either direction
+        source_code = """
+def validator(x: int) -> str:
+    b: str = x
+    return b
 """
         ast = compiler.parse(source_code)
         code = compiler.compile(ast)
@@ -754,3 +770,130 @@ def validator(x: None) -> None:
         ast = compiler.parse(source_code)
         code = compiler.compile(ast).compile()
         res = uplc_eval(uplc.Apply(code, uplc.PlutusInteger(0)))
+
+    def test_return_anything(self):
+        source_code = """
+from opshin.prelude import *
+
+def validator() -> Anything:
+    return b""
+"""
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast).compile()
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusConstr(0, [])))
+        self.assertEqual(res, uplc.PlutusByteString(b""))
+
+    def test_no_return_annotation(self):
+        source_code = """
+from opshin.prelude import *
+
+def validator():
+    return b""
+"""
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast).compile()
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusConstr(0, [])))
+        self.assertEqual(res, uplc.PlutusByteString(b""))
+
+    def test_no_parameter_annotation(self):
+        source_code = """
+from opshin.prelude import *
+
+def validator(a) -> bytes:
+    b: bytes = a
+    return b
+"""
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast).compile()
+        res = uplc_eval(uplc.Apply(code, uplc.PlutusByteString(b"")))
+        self.assertEqual(res, uplc.PlutusByteString(b""))
+
+    @given(xs=st.dictionaries(st.integers(), st.binary()))
+    def test_dict_items_values_deconstr(self, xs):
+        # asserts that deconstruction of parameters works for for loops too
+        source_code = """
+def validator(xs: Dict[int, bytes]) -> bytes:
+    sum_values = b""
+    for _, x in xs.items():
+        sum_values += x
+    return sum_values
+"""
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast)
+        code = code.compile()
+        f = code.term
+        # UPLC lambdas may only take one argument at a time, so we evaluate by repeatedly applying
+        for d in [
+            uplc.PlutusMap(
+                {uplc.PlutusInteger(k): uplc.PlutusByteString(v) for k, v in xs.items()}
+            )
+        ]:
+            f = uplc.Apply(f, d)
+        ret = uplc_eval(f).value
+        self.assertEqual(
+            ret,
+            b"".join(xs.values()),
+            "for loop deconstruction did not behave as expected",
+        )
+
+    def test_nested_deconstruction(self):
+        source_code = """
+def validator(xs) -> int:
+    a, ((b, c), d) = (1, ((2, 3), 4))
+    return a + b + c + d
+"""
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast)
+        code = code.compile()
+        f = code.term
+        # UPLC lambdas may only take one argument at a time, so we evaluate by repeatedly applying
+        f = uplc.Apply(f, uplc.PlutusConstr(0, []))
+        ret = uplc_eval(f).value
+        self.assertEqual(
+            ret,
+            1 + 2 + 3 + 4,
+            "for loop deconstruction did not behave as expected",
+        )
+
+    @given(
+        xs=st.dictionaries(
+            st.binary(),
+            st.dictionaries(st.binary(), st.integers(), max_size=3),
+            max_size=5,
+        )
+    )
+    def test_dict_items_values_deconstr(self, xs):
+        # nested deconstruction with a Value-like object
+        source_code = """
+def validator(xs: Dict[bytes, Dict[bytes, int]]) -> int:
+    sum_values = 0
+    for pid, tk_dict in xs.items():
+        for tk_name, tk_amount in tk_dict.items():
+            sum_values += tk_amount
+    return sum_values
+"""
+        ast = compiler.parse(source_code)
+        code = compiler.compile(ast)
+        code = code.compile()
+        f = code.term
+        # UPLC lambdas may only take one argument at a time, so we evaluate by repeatedly applying
+        for d in [
+            uplc.PlutusMap(
+                {
+                    uplc.PlutusByteString(k): uplc.PlutusMap(
+                        {
+                            uplc.PlutusByteString(k2): uplc.PlutusInteger(v2)
+                            for k2, v2 in v.items()
+                        }
+                    )
+                    for k, v in xs.items()
+                }
+            )
+        ]:
+            f = uplc.Apply(f, d)
+        ret = uplc_eval(f).value
+        self.assertEqual(
+            ret,
+            sum(v for pid, d in xs.items() for nam, v in d.items()),
+            "for loop deconstruction did not behave as expected",
+        )

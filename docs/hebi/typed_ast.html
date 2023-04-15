@@ -1177,7 +1177,9 @@ TransformOutputMap = {
     StringInstanceType: lambda x: plt.BData(plt.EncodeUtf8(x)),
     IntegerInstanceType: lambda x: plt.IData(x),
     ByteStringInstanceType: lambda x: plt.BData(x),
-    UnitInstanceType: lambda x: plt.Apply(plt.Lambda([&#34;_&#34;], plt.Unit()), x),
+    UnitInstanceType: lambda x: plt.Apply(
+        plt.Lambda([&#34;_&#34;], plt.ConstrData(plt.Integer(0), plt.EmptyDataList())), x
+    ),
     BoolInstanceType: lambda x: plt.IData(
         plt.IfThenElse(x, plt.Integer(1), plt.Integer(0))
     ),
@@ -5076,6 +5078,7 @@ allows modifications.</p></div>
 <h3>Subclasses</h3>
 <ul class="hlist">
 <li><a title="hebi.util.CompilingNodeVisitor" href="util.html#hebi.util.CompilingNodeVisitor">CompilingNodeVisitor</a></li>
+<li><a title="hebi.util.ReturnExtractor" href="util.html#hebi.util.ReturnExtractor">ReturnExtractor</a></li>
 </ul>
 <h3>Methods</h3>
 <dl>

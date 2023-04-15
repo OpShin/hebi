@@ -360,7 +360,7 @@ class AggressiveTypeInferencer(CompilingNodeTransformer):
         # Check that return type and annotated return type match
         if not rets:
             assert (
-                functyp.rettyp == NoneInstanceType
+                functyp.rettyp >= NoneInstanceType
             ), f"Function '{node.name}' has no return statement but is supposed to return not-None value"
         else:
             assert all(

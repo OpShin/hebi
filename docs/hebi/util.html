@@ -627,7 +627,17 @@ def datum_to_cbor(d: pycardano.Datum) -&gt; bytes:
 
 
 def datum_to_json(d: pycardano.Datum) -&gt; str:
-    return pycardano.PlutusData.to_json(d)</code></pre>
+    return pycardano.PlutusData.to_json(d)
+
+
+class ReturnExtractor(TypedNodeVisitor):
+    &#34;&#34;&#34;Utility to find all Return statements in an AST subtree&#34;&#34;&#34;
+
+    def __init__(self):
+        self.returns = []
+
+    def visit_Return(self, node: Return) -&gt; None:
+        self.returns.append(node)</code></pre>
 </details>
 </section>
 <section>
@@ -1420,6 +1430,56 @@ allows modifications.</p></div>
 </dd>
 </dl>
 </dd>
+<dt id="hebi.util.ReturnExtractor"><code class="flex name class">
+<span>class <span class="ident">ReturnExtractor</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Utility to find all Return statements in an AST subtree</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ReturnExtractor(TypedNodeVisitor):
+    &#34;&#34;&#34;Utility to find all Return statements in an AST subtree&#34;&#34;&#34;
+
+    def __init__(self):
+        self.returns = []
+
+    def visit_Return(self, node: Return) -&gt; None:
+        self.returns.append(node)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="hebi.typed_ast.TypedNodeVisitor" href="typed_ast.html#hebi.typed_ast.TypedNodeVisitor">TypedNodeVisitor</a></li>
+<li>ast.NodeVisitor</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="hebi.util.ReturnExtractor.visit"><code class="name flex">
+<span>def <span class="ident">visit</span></span>(<span>self, node)</span>
+</code></dt>
+<dd>
+<p class="inheritance">
+<em>Inherited from:</em>
+<code><a title="hebi.typed_ast.TypedNodeVisitor" href="typed_ast.html#hebi.typed_ast.TypedNodeVisitor">TypedNodeVisitor</a></code>.<code><a title="hebi.typed_ast.TypedNodeVisitor.visit" href="typed_ast.html#hebi.typed_ast.TypedNodeVisitor.visit">visit</a></code>
+</p>
+<div class="desc inherited"><p>Visit a node.</p></div>
+</dd>
+<dt id="hebi.util.ReturnExtractor.visit_Return"><code class="name flex">
+<span>def <span class="ident">visit_Return</span></span>(<span>self, node: _ast.Return) ‑> None</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def visit_Return(self, node: Return) -&gt; None:
+    self.returns.append(node)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
 <dt id="hebi.util.ReversedImpl"><code class="flex name class">
 <span>class <span class="ident">ReversedImpl</span></span>
 </code></dt>
@@ -1626,6 +1686,13 @@ setTimeout(() => input.focus(), 100);
 <li><code><a title="hebi.util.PythonBuiltIn.range" href="#hebi.util.PythonBuiltIn.range">range</a></code></li>
 <li><code><a title="hebi.util.PythonBuiltIn.reversed" href="#hebi.util.PythonBuiltIn.reversed">reversed</a></code></li>
 <li><code><a title="hebi.util.PythonBuiltIn.sum" href="#hebi.util.PythonBuiltIn.sum">sum</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="hebi.util.ReturnExtractor" href="#hebi.util.ReturnExtractor">ReturnExtractor</a></code></h4>
+<ul class="">
+<li><code><a title="hebi.util.ReturnExtractor.visit" href="typed_ast.html#hebi.util.ReturnExtractor.visit">visit</a></code></li>
+<li><code><a title="hebi.util.ReturnExtractor.visit_Return" href="#hebi.util.ReturnExtractor.visit_Return">visit_Return</a></code></li>
 </ul>
 </li>
 <li>

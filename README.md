@@ -26,7 +26,7 @@ If the program compiles then:
 2. the output running it with python is the same as running it on-chain.
 
 
-> Note this is the sister project of [eopsin](https://github.com/ImperatorLang/eopsin).
+> Note this is the sister project of [opshin](https://github.com/OpShin/opshin).
 It uses an even more restricted subset of python (for example no while loops).
 The benefit is that the resulting code is greatly reduced in size and cpu/memory consumption.
 

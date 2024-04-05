@@ -13,6 +13,9 @@
 
 </div>
 
+> NOTE: This project is discontinued. The significant gains in performance of hebi are now also present in [opshin](https://github.com/opshin/opshin), while also allowing to use loops etc.
+> This project does therefore not provide any added value anymore.
+
 > You are building what you want. Why not also build **how** you want?
 
 
